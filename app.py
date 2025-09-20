@@ -121,2644 +121,128 @@ def index():
             }
 
             function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
+                window.open("/api/transactions/export/excel", "_blank");
             }
 
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
+            function loadQBOTransactions() {
+                const container = document.getElementById("qbo-transactions-container");
+                const loading = document.getElementById("qbo-loading");
                 
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                loading.style.display = "block";
+                container.innerHTML = "";
                 
-                fetch('/api/transactions')
+                fetch("/api/transactions/qbo-style")
                     .then(response => response.json())
                     .then(data => {
+                        loading.style.display = "none";
+                        
                         if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            container.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                             return;
                         }
                         
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
+                        if (data.transactions && data.transactions.length > 0) {
+                            // Create QBO-style table
+                            let tableHTML = `
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Transaction Date</th>
+                                                <th>Distribution Account</th>
+                                                <th>Name</th>
+                                                <th>Transaction Type</th>
+                                                <th>Memo/Description</th>
+                                                <th>Item Split Account</th>
+                                                <th>Amount</th>
+                                                <th>Customer</th>
+                                                <th>Supplier</th>
+                                                <th>Account Type</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                            `;
+                            
+                            data.transactions.forEach(transaction => {
+                                const amountClass = transaction.Amount < 0 ? "text-danger" : "text-success";
+                                tableHTML += `
+                                    <tr>
+                                        <td>${transaction["Transaction date"] || ""}</td>
+                                        <td>${transaction["Distribution account"] || ""}</td>
+                                        <td>${transaction["Name"] || ""}</td>
+                                        <td>${transaction["Transaction type"] || ""}</td>
+                                        <td>${transaction["Memo/Description"] || ""}</td>
+                                        <td>${transaction["Item split account full name"] || ""}</td>
+                                        <td class="${amountClass}">$${Math.abs(transaction.Amount).toFixed(2)}</td>
+                                        <td>${transaction["Customer"] || ""}</td>
+                                        <td>${transaction["Supplier"] || ""}</td>
+                                        <td>${transaction["Distribution account type"] || ""}</td>
+                                    </tr>
+                                `;
+                            });
+                            
+                            tableHTML += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                            
+                            // Add summary cards
+                            if (data.summary) {
+                                tableHTML += `
+                                    <div class="row mt-3">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body text-center">
+                                                    <h6>Total Transactions</h6>
+                                                    <h4>${data.total_count}</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body text-center">
+                                                    <h6>Total Amount</h6>
+                                                    <h4>$${data.summary.total_amount ? data.summary.total_amount.toFixed(2) : "0.00"}</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body text-center">
+                                                    <h6>Average Amount</h6>
+                                                    <h4>$${data.summary.average_amount ? data.summary.average_amount.toFixed(2) : "0.00"}</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body text-center">
+                                                    <h6>Date Range</h6>
+                                                    <small>${data.summary.date_range.earliest} to ${data.summary.date_range.latest}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
                             }
-                            summaryHtml += '</div></div>';
+                            
+                            container.innerHTML = tableHTML;
+                        } else {
+                            container.innerHTML = "<div class=\"alert alert-info\">No QBO-style transaction data available</div>";
                         }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
                     })
                     .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                        loading.style.display = "none";
+                        container.innerHTML = `<div class="alert alert-danger">Error loading QBO transactions: ${error.message}</div>`;
                     });
             }
 
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
+            function exportQBOTransactions() {
+                window.open("/api/transactions/export/qbo-style", "_blank");
             }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            .feature-card {
-                transition: transform 0.3s ease;
-                border: none;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            .feature-card:hover {
-                transform: translateY(-5px);
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-        </style>
-    </head>
-    <body>
-        <div class="hero-section text-center">
-            <div class="container">
-                <h1 class="display-4 fw-bold mb-4">DataRift</h1>
-                <p class="lead mb-5">Connect to QuickBooks and analyze your business data in real-time</p>
-                <a href="/auth" class="btn btn-light btn-lg px-5">Connect to QuickBooks</a>
-            </div>
-        </div>
-
-        <div class="container my-5">
-            <div class="row">
-                <div class="col-md-4 mb-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">📊 Real-time Data</h5>
-                            <p class="card-text">Access your QuickBooks customers, invoices, payments, and items instantly.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">🔐 Secure OAuth</h5>
-                            <p class="card-text">Bank-level security with OAuth 2.0 authentication for your data.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">🚀 Production Ready</h5>
-                            <p class="card-text">Deployed on Railway with production QuickBooks integration.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    </body>
-    </html>
-    '''
-
-@app.route('/auth')
-def auth():
-    state = str(uuid.uuid4())
-    session['oauth_state'] = state
-    session.permanent = True
-
-    scope = "com.intuit.quickbooks.accounting"
-    auth_url = (
-        f"{QB_OAUTH_AUTHORIZE_URL}?"
-        f"client_id={QB_CLIENT_ID}&"
-        f"scope={scope}&"
-        f"redirect_uri={QB_REDIRECT_URI}&"
-        f"response_type=code&"
-        f"state={state}&"
-        f"access_type=offline"
-    )
-    return redirect(auth_url)
-
-@app.route('/callback')
-def callback():
-    received_state = request.args.get('state')
-    stored_state = session.get('oauth_state')
-
-    if received_state != stored_state:
-        flash("Invalid state parameter. Please try connecting again.", "danger")
-        return redirect(url_for('index'))
-
-    code = request.args.get('code')
-    realm_id = request.args.get('realmId')
-
-    if not code or not realm_id:
-        flash("Authorization failed. Missing code or realmId.", "danger")
-        return redirect(url_for('index'))
-
-    # Exchange code for tokens
-    token_url = QB_OAUTH_TOKEN_URL
-    headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + base64.b64encode(
-            f"{QB_CLIENT_ID}:{QB_CLIENT_SECRET}".encode('utf-8')
-        ).decode('utf-8')
-    }
-    data = {
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': QB_REDIRECT_URI
-    }
-
-    try:
-        response = requests.post(token_url, headers=headers, data=data)
-        response.raise_for_status()
-        token_data = response.json()
-
-        session['access_token'] = token_data['access_token']
-        session['refresh_token'] = token_data['refresh_token']
-        session['company_id'] = realm_id
-        session['expires_in'] = token_data['expires_in']
-        session['x_refresh_token_expires_in'] = token_data['x_refresh_token_expires_in']
-
-        flash("Successfully connected to QuickBooks!", "success")
-        return redirect(url_for('dashboard'))
-    except requests.exceptions.RequestException as e:
-        flash(f"Error exchanging token: {e}", "danger")
-        return redirect(url_for('index'))
-
-@app.route('/dashboard')
-def dashboard():
-    if 'access_token' not in session or 'company_id' not in session:
-        flash("Please connect to QuickBooks first.", "warning")
-        return redirect(url_for('index'))
-    
-    return '''
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>DataRift Dashboard</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-            .dashboard-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 2rem 0;
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            .data-card {
-                transition: transform 0.3s ease;
-                border: none;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            .data-card:hover {
-                transform: translateY(-2px);
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-        </style>
-    </head>
-    <body>
-        <div class="dashboard-header">
-            <div class="container">
-                <h1 class="display-5 fw-bold">DataRift Dashboard</h1>
-                <p class="lead">Your QuickBooks data at a glance</p>
-            </div>
-        </div>
-
-        <div class="container my-5">
-            <div class="row">
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">👥 Customers</h5>
-                            <p class="card-text">View and manage your customer data</p>
-                            <button class="btn btn-primary" onclick="loadData('customers')">Load Customers</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">📄 Invoices</h5>
-                            <p class="card-text">Access your invoice information</p>
-                            <button class="btn btn-primary" onclick="loadData('invoices')">Load Invoices</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">💰 Payments</h5>
-                            <p class="card-text">Track payment transactions</p>
-                            <button class="btn btn-primary" onclick="loadData('payments')">Load Payments</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">📦 Items</h5>
-                            <p class="card-text">Manage your product catalog</p>
-                            <button class="btn btn-primary" onclick="loadData('items')">Load Items</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Transaction Data Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="text-center mb-4">💳 Transaction Data</h3>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">📝 Journal Entries</h5>
-                            <p class="card-text">General accounting transactions</p>
-                            <button class="btn btn-success" onclick="loadData('journal_entries')">Load Journal Entries</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">💵 Deposits</h5>
-                            <p class="card-text">Money coming into your business</p>
-                            <button class="btn btn-success" onclick="loadData('deposits')">Load Deposits</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">💸 Expenses</h5>
-                            <p class="card-text">Money going out of your business</p>
-                            <button class="btn btn-success" onclick="loadData('expenses')">Load Expenses</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card data-card">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">🔄 Transfers</h5>
-                            <p class="card-text">Money moving between accounts</p>
-                            <button class="btn btn-success" onclick="loadData('transfers')">Load Transfers</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mt-4">
-
-            <!-- Enhanced Pandas Transaction Table Section -->
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">📊 Enhanced Transaction Table (Pandas)</h5>
-                            <div>
-                                <button class="btn btn-info btn-sm me-2" onclick="loadPandasTransactions()">🔄 Refresh</button>
-                                <button class="btn btn-success btn-sm me-2" onclick="exportPandasCSV()">📥 CSV</button>
-                                <button class="btn btn-warning btn-sm" onclick="exportExcel()">📊 Excel</button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="pandas-summary" class="mb-3"></div>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover" id="pandas-transactions-table">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Type</th>
-                                            <th>Date</th>
-                                            <th>Amount</th>
-                                            <th>Description</th>
-                                            <th>Reference</th>
-                                            <th>Status</th>
-                                            <th>Created</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pandas-transactions-tbody">
-                                        <tr>
-                                            <td colspan="8" class="text-center text-muted">Click "Refresh" to load transactions</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div id="pandas-stats" class="mt-3"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-
-            <!-- Unified Transaction Table Section -->
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">📊 Unified Transaction Table</h5>
-                            <div>
-                                <button class="btn btn-info btn-sm me-2" onclick="loadUnifiedTransactions()">🔄 Refresh</button>
-                                <button class="btn btn-success btn-sm" onclick="exportTransactions()">📥 Export CSV</button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="transaction-summary" class="mb-3"></div>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover" id="transactions-table">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Type</th>
-                                            <th>Date</th>
-                                            <th>Amount</th>
-                                            <th>Description</th>
-                                            <th>Reference</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="transactions-tbody">
-                                        <tr>
-                                            <td colspan="7" class="text-center text-muted">Click "Refresh" to load transactions</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-                <div class="col-12 text-center">
-                    <button class="btn btn-success btn-lg" onclick="syncAllData()">🔄 Sync All Data</button>
-                    <a href="/" class="btn btn-secondary btn-lg ms-3">← Back to Home</a>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            function loadData(type) {
-                const display = document.getElementById('data-display');
-                display.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-                
-                fetch(`/api/${type}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        display.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                    })
-                    .catch(error => {
-                        display.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-
-            function syncAllData() {
-                const display = document.getElementById('data-display');
-                display.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Syncing...</span></div></div>';
-                
-                fetch('/api/sync')
-                    .then(response => response.json())
-                    .then(data => {
-                        display.innerHTML = `<div class="alert alert-success"><h5>Sync Complete!</h5><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
-                    })
-                    .catch(error => {
-                        display.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function loadUnifiedTransactions() {
-                const tbody = document.getElementById('transactions-tbody');
-                const summary = document.getElementById('transaction-summary');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        
-                        // Update summary
-                        let summaryHtml = '<div class="row">';
-                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
-                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
-                        }
-                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                            </tr>
-                        `).join('');
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
-
-            function exportTransactions() {
-                window.open('/api/transactions/export', '_blank');
-            }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
-            }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
-            }
-
-            function exportExcel() {
-                window.open('/api/transactions/export/excel', '_blank');
-            }
-
 
         </script>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
@@ -2881,6 +365,224 @@ def sync_data():
     })
 
 @app.route('/tokens')
+
+# QBO-Style Transaction Endpoint
+@app.route('/api/transactions/qbo-style')
+def get_transactions_qbo_style():
+    """Get all transactions formatted like QBO export"""
+    if 'access_token' not in session or 'company_id' not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    from datetime import datetime
+    
+    unified_transactions = []
+    
+    # Helper function to convert QB data to QBO export format
+    def convert_to_qbo_format(transaction, transaction_type):
+        """Convert QuickBooks transaction to QBO export format"""
+        
+        # Base QBO export structure
+        qbo_row = {
+            'Transaction date': '',
+            'Distribution account': '',
+            'Name': '',
+            'Transaction type': '',
+            'Transaction type_2': '',  # Duplicate column as in QBO
+            'Memo/Description': '',
+            'Item split account full name': '',
+            'Amount': 0,
+            'Customer': '',
+            'Full name': '',
+            'Supplier': '',
+            'Distribution account type': '',
+            'Item class': '',
+            'Class full name': ''
+        }
+        
+        # Set transaction date
+        qbo_row['Transaction date'] = transaction.get('TxnDate', '')
+        
+        # Set transaction type
+        qbo_row['Transaction type'] = transaction_type
+        qbo_row['Transaction type_2'] = transaction_type
+        
+        # Extract amount and set as negative for expenses
+        amount = 0
+        if transaction_type in ['Bill', 'Bill Payment (Cheque)', 'Expense']:
+            amount = -abs(float(transaction.get('TotalAmt', 0)))
+        else:
+            amount = float(transaction.get('TotalAmt', 0))
+        
+        qbo_row['Amount'] = amount
+        
+        # Process based on transaction type
+        if transaction_type == 'JournalEntry':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Journal Entry')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            
+            # Process journal entry lines
+            for line in transaction.get('Line', []):
+                if line.get('DetailType') == 'JournalEntryLineDetail':
+                    detail = line.get('JournalEntryLineDetail', {})
+                    account = detail.get('AccountRef', {})
+                    qbo_row['Distribution account'] = account.get('name', '')
+                    qbo_row['Item split account full name'] = account.get('name', '')
+                    qbo_row['Distribution account type'] = 'Other'  # Default
+                    break
+                    
+        elif transaction_type == 'Deposit':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Deposit')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            qbo_row['Distribution account'] = 'Bank Account'  # Default
+            qbo_row['Distribution account type'] = 'Bank'
+            
+        elif transaction_type == 'Purchase':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Purchase')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            qbo_row['Distribution account'] = 'Accounts Payable'
+            qbo_row['Distribution account type'] = 'Accounts payable (A/P)'
+            
+            # Get vendor info
+            vendor_ref = transaction.get('VendorRef', {})
+            qbo_row['Supplier'] = vendor_ref.get('name', '')
+            qbo_row['Full name'] = vendor_ref.get('name', '')
+            
+        elif transaction_type == 'Transfer':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Transfer')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            qbo_row['Distribution account'] = 'Bank Account'
+            qbo_row['Distribution account type'] = 'Bank'
+            
+        elif transaction_type == 'Payment':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Payment')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            qbo_row['Distribution account'] = 'Bank Account'
+            qbo_row['Distribution account type'] = 'Bank'
+            
+            # Get customer info
+            customer_ref = transaction.get('CustomerRef', {})
+            qbo_row['Customer'] = customer_ref.get('name', '')
+            qbo_row['Full name'] = customer_ref.get('name', '')
+            
+        elif transaction_type == 'Invoice':
+            qbo_row['Name'] = transaction.get('DocNumber', 'Invoice')
+            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+            qbo_row['Distribution account'] = 'Accounts Receivable'
+            qbo_row['Distribution account type'] = 'Accounts receivable (A/R)'
+            
+            # Get customer info
+            customer_ref = transaction.get('CustomerRef', {})
+            qbo_row['Customer'] = customer_ref.get('name', '')
+            qbo_row['Full name'] = customer_ref.get('name', '')
+        
+        return qbo_row
+    
+    # Fetch all transaction types
+    transaction_types = [
+        ('JournalEntry', 'Journal Entry'),
+        ('Deposit', 'Deposit'),
+        ('Purchase', 'Bill'),
+        ('Transfer', 'Transfer'),
+        ('Payment', 'Payment'),
+        ('Invoice', 'Invoice')
+    ]
+    
+    for entity_type, qbo_type in transaction_types:
+        try:
+            result = make_quickbooks_api_call(f"SELECT * FROM {entity_type}")
+            
+            if isinstance(result, tuple):
+                print(f"Error fetching {qbo_type}: {result[0]}")
+                continue
+                
+            transactions = result.get('QueryResponse', {}).get(entity_type, [])
+            
+            for transaction in transactions:
+                qbo_formatted = convert_to_qbo_format(transaction, qbo_type)
+                unified_transactions.append(qbo_formatted)
+                
+        except Exception as e:
+            print(f"Error processing {qbo_type}: {str(e)}")
+            continue
+    
+    # Convert to pandas DataFrame
+    df = pd.DataFrame(unified_transactions)
+    
+    if df.empty:
+        return jsonify({
+            'transactions': [],
+            'total_count': 0,
+            'summary': {},
+            'qbo_format': True
+        })
+    
+    # Convert date column to datetime and sort
+    df['Transaction date'] = pd.to_datetime(df['Transaction date'], errors='coerce')
+    df = df.sort_values('Transaction date', ascending=False)
+    
+    # Format date back to string for JSON
+    df['Transaction date'] = df['Transaction date'].dt.strftime('%Y/%m/%d')
+    
+    # Create summary statistics
+    summary = {
+        'by_type': df['Transaction type'].value_counts().to_dict(),
+        'total_amount': df['Amount'].sum(),
+        'average_amount': df['Amount'].mean(),
+        'date_range': {
+            'earliest': df['Transaction date'].min() if not df['Transaction date'].isna().all() else 'N/A',
+            'latest': df['Transaction date'].max() if not df['Transaction date'].isna().all() else 'N/A'
+        },
+        'amount_by_type': df.groupby('Transaction type')['Amount'].sum().to_dict()
+    }
+    
+    # Convert DataFrame back to list of dictionaries for JSON response
+    transactions_list = df.fillna('').to_dict('records')
+    
+    return jsonify({
+        'transactions': transactions_list,
+        'total_count': len(transactions_list),
+        'summary': summary,
+        'qbo_format': True,
+        'columns': list(df.columns)
+    })
+
+# QBO-Style CSV Export
+@app.route('/api/transactions/export/qbo-style')
+def export_transactions_qbo_style():
+    """Export transactions in QBO export format"""
+    if 'access_token' not in session or 'company_id' not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    import io
+    from flask import Response
+    
+    # Get the QBO-style transaction data
+    transactions_data = get_transactions_qbo_style()
+    if isinstance(transactions_data, tuple):
+        return transactions_data
+    
+    transactions = transactions_data.get_json()['transactions']
+    
+    # Create DataFrame
+    df = pd.DataFrame(transactions)
+    
+    if df.empty:
+        return Response("No data available", mimetype='text/csv')
+    
+    # Create CSV content with QBO-style formatting
+    output = io.StringIO()
+    df.to_csv(output, index=False, encoding='utf-8')
+    csv_content = output.getvalue()
+    output.close()
+    
+    return Response(
+        csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=quickbooks_transactions_qbo_style.csv'}
+    )
+
 
 # Enhanced Pandas-based Transaction Endpoint
 @app.route('/api/transactions/pandas')
