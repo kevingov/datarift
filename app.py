@@ -364,13 +364,12 @@ def sync_data():
         "status": "success"
     })
 
-@app.route('/tokens')
 
 # QBO-Style Transaction Endpoint
-@app.route('/api/transactions/qbo-style')
+@app.route("/api/transactions/qbo-style")
 def get_transactions_qbo_style():
     """Get all transactions formatted like QBO export"""
-    if 'access_token' not in session or 'company_id' not in session:
+    if "access_token" not in session or "company_id" not in session:
         return jsonify({"error": "Not connected to QuickBooks"}), 401
     
     import pandas as pd
@@ -384,108 +383,108 @@ def get_transactions_qbo_style():
         
         # Base QBO export structure
         qbo_row = {
-            'Transaction date': '',
-            'Distribution account': '',
-            'Name': '',
-            'Transaction type': '',
-            'Transaction type_2': '',  # Duplicate column as in QBO
-            'Memo/Description': '',
-            'Item split account full name': '',
-            'Amount': 0,
-            'Customer': '',
-            'Full name': '',
-            'Supplier': '',
-            'Distribution account type': '',
-            'Item class': '',
-            'Class full name': ''
+            "Transaction date": "",
+            "Distribution account": "",
+            "Name": "",
+            "Transaction type": "",
+            "Transaction type_2": "",  # Duplicate column as in QBO
+            "Memo/Description": "",
+            "Item split account full name": "",
+            "Amount": 0,
+            "Customer": "",
+            "Full name": "",
+            "Supplier": "",
+            "Distribution account type": "",
+            "Item class": "",
+            "Class full name": ""
         }
         
         # Set transaction date
-        qbo_row['Transaction date'] = transaction.get('TxnDate', '')
+        qbo_row["Transaction date"] = transaction.get("TxnDate", "")
         
         # Set transaction type
-        qbo_row['Transaction type'] = transaction_type
-        qbo_row['Transaction type_2'] = transaction_type
+        qbo_row["Transaction type"] = transaction_type
+        qbo_row["Transaction type_2"] = transaction_type
         
         # Extract amount and set as negative for expenses
         amount = 0
-        if transaction_type in ['Bill', 'Bill Payment (Cheque)', 'Expense']:
-            amount = -abs(float(transaction.get('TotalAmt', 0)))
+        if transaction_type in ["Bill", "Bill Payment (Cheque)", "Expense"]:
+            amount = -abs(float(transaction.get("TotalAmt", 0)))
         else:
-            amount = float(transaction.get('TotalAmt', 0))
+            amount = float(transaction.get("TotalAmt", 0))
         
-        qbo_row['Amount'] = amount
+        qbo_row["Amount"] = amount
         
         # Process based on transaction type
-        if transaction_type == 'JournalEntry':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Journal Entry')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
+        if transaction_type == "JournalEntry":
+            qbo_row["Name"] = transaction.get("DocNumber", "Journal Entry")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
             
             # Process journal entry lines
-            for line in transaction.get('Line', []):
-                if line.get('DetailType') == 'JournalEntryLineDetail':
-                    detail = line.get('JournalEntryLineDetail', {})
-                    account = detail.get('AccountRef', {})
-                    qbo_row['Distribution account'] = account.get('name', '')
-                    qbo_row['Item split account full name'] = account.get('name', '')
-                    qbo_row['Distribution account type'] = 'Other'  # Default
+            for line in transaction.get("Line", []):
+                if line.get("DetailType") == "JournalEntryLineDetail":
+                    detail = line.get("JournalEntryLineDetail", {})
+                    account = detail.get("AccountRef", {})
+                    qbo_row["Distribution account"] = account.get("name", "")
+                    qbo_row["Item split account full name"] = account.get("name", "")
+                    qbo_row["Distribution account type"] = "Other"  # Default
                     break
                     
-        elif transaction_type == 'Deposit':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Deposit')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
-            qbo_row['Distribution account'] = 'Bank Account'  # Default
-            qbo_row['Distribution account type'] = 'Bank'
+        elif transaction_type == "Deposit":
+            qbo_row["Name"] = transaction.get("DocNumber", "Deposit")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            qbo_row["Distribution account"] = "Bank Account"  # Default
+            qbo_row["Distribution account type"] = "Bank"
             
-        elif transaction_type == 'Purchase':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Purchase')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
-            qbo_row['Distribution account'] = 'Accounts Payable'
-            qbo_row['Distribution account type'] = 'Accounts payable (A/P)'
+        elif transaction_type == "Purchase":
+            qbo_row["Name"] = transaction.get("DocNumber", "Purchase")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            qbo_row["Distribution account"] = "Accounts Payable"
+            qbo_row["Distribution account type"] = "Accounts payable (A/P)"
             
             # Get vendor info
-            vendor_ref = transaction.get('VendorRef', {})
-            qbo_row['Supplier'] = vendor_ref.get('name', '')
-            qbo_row['Full name'] = vendor_ref.get('name', '')
+            vendor_ref = transaction.get("VendorRef", {})
+            qbo_row["Supplier"] = vendor_ref.get("name", "")
+            qbo_row["Full name"] = vendor_ref.get("name", "")
             
-        elif transaction_type == 'Transfer':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Transfer')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
-            qbo_row['Distribution account'] = 'Bank Account'
-            qbo_row['Distribution account type'] = 'Bank'
+        elif transaction_type == "Transfer":
+            qbo_row["Name"] = transaction.get("DocNumber", "Transfer")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            qbo_row["Distribution account"] = "Bank Account"
+            qbo_row["Distribution account type"] = "Bank"
             
-        elif transaction_type == 'Payment':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Payment')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
-            qbo_row['Distribution account'] = 'Bank Account'
-            qbo_row['Distribution account type'] = 'Bank'
-            
-            # Get customer info
-            customer_ref = transaction.get('CustomerRef', {})
-            qbo_row['Customer'] = customer_ref.get('name', '')
-            qbo_row['Full name'] = customer_ref.get('name', '')
-            
-        elif transaction_type == 'Invoice':
-            qbo_row['Name'] = transaction.get('DocNumber', 'Invoice')
-            qbo_row['Memo/Description'] = transaction.get('DocNumber', '')
-            qbo_row['Distribution account'] = 'Accounts Receivable'
-            qbo_row['Distribution account type'] = 'Accounts receivable (A/R)'
+        elif transaction_type == "Payment":
+            qbo_row["Name"] = transaction.get("DocNumber", "Payment")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            qbo_row["Distribution account"] = "Bank Account"
+            qbo_row["Distribution account type"] = "Bank"
             
             # Get customer info
-            customer_ref = transaction.get('CustomerRef', {})
-            qbo_row['Customer'] = customer_ref.get('name', '')
-            qbo_row['Full name'] = customer_ref.get('name', '')
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
+            
+        elif transaction_type == "Invoice":
+            qbo_row["Name"] = transaction.get("DocNumber", "Invoice")
+            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            qbo_row["Distribution account"] = "Accounts Receivable"
+            qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+            
+            # Get customer info
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
         
         return qbo_row
     
     # Fetch all transaction types
     transaction_types = [
-        ('JournalEntry', 'Journal Entry'),
-        ('Deposit', 'Deposit'),
-        ('Purchase', 'Bill'),
-        ('Transfer', 'Transfer'),
-        ('Payment', 'Payment'),
-        ('Invoice', 'Invoice')
+        ("JournalEntry", "Journal Entry"),
+        ("Deposit", "Deposit"),
+        ("Purchase", "Bill"),
+        ("Transfer", "Transfer"),
+        ("Payment", "Payment"),
+        ("Invoice", "Invoice")
     ]
     
     for entity_type, qbo_type in transaction_types:
@@ -496,7 +495,7 @@ def get_transactions_qbo_style():
                 print(f"Error fetching {qbo_type}: {result[0]}")
                 continue
                 
-            transactions = result.get('QueryResponse', {}).get(entity_type, [])
+            transactions = result.get("QueryResponse", {}).get(entity_type, [])
             
             for transaction in transactions:
                 qbo_formatted = convert_to_qbo_format(transaction, qbo_type)
@@ -511,47 +510,47 @@ def get_transactions_qbo_style():
     
     if df.empty:
         return jsonify({
-            'transactions': [],
-            'total_count': 0,
-            'summary': {},
-            'qbo_format': True
+            "transactions": [],
+            "total_count": 0,
+            "summary": {},
+            "qbo_format": True
         })
     
     # Convert date column to datetime and sort
-    df['Transaction date'] = pd.to_datetime(df['Transaction date'], errors='coerce')
-    df = df.sort_values('Transaction date', ascending=False)
+    df["Transaction date"] = pd.to_datetime(df["Transaction date"], errors="coerce")
+    df = df.sort_values("Transaction date", ascending=False)
     
     # Format date back to string for JSON
-    df['Transaction date'] = df['Transaction date'].dt.strftime('%Y/%m/%d')
+    df["Transaction date"] = df["Transaction date"].dt.strftime("%Y/%m/%d")
     
     # Create summary statistics
     summary = {
-        'by_type': df['Transaction type'].value_counts().to_dict(),
-        'total_amount': df['Amount'].sum(),
-        'average_amount': df['Amount'].mean(),
-        'date_range': {
-            'earliest': df['Transaction date'].min() if not df['Transaction date'].isna().all() else 'N/A',
-            'latest': df['Transaction date'].max() if not df['Transaction date'].isna().all() else 'N/A'
+        "by_type": df["Transaction type"].value_counts().to_dict(),
+        "total_amount": df["Amount"].sum(),
+        "average_amount": df["Amount"].mean(),
+        "date_range": {
+            "earliest": df["Transaction date"].min() if not df["Transaction date"].isna().all() else "N/A",
+            "latest": df["Transaction date"].max() if not df["Transaction date"].isna().all() else "N/A"
         },
-        'amount_by_type': df.groupby('Transaction type')['Amount'].sum().to_dict()
+        "amount_by_type": df.groupby("Transaction type")["Amount"].sum().to_dict()
     }
     
     # Convert DataFrame back to list of dictionaries for JSON response
-    transactions_list = df.fillna('').to_dict('records')
+    transactions_list = df.fillna("").to_dict("records")
     
     return jsonify({
-        'transactions': transactions_list,
-        'total_count': len(transactions_list),
-        'summary': summary,
-        'qbo_format': True,
-        'columns': list(df.columns)
+        "transactions": transactions_list,
+        "total_count": len(transactions_list),
+        "summary": summary,
+        "qbo_format": True,
+        "columns": list(df.columns)
     })
 
 # QBO-Style CSV Export
-@app.route('/api/transactions/export/qbo-style')
+@app.route("/api/transactions/export/qbo-style")
 def export_transactions_qbo_style():
     """Export transactions in QBO export format"""
-    if 'access_token' not in session or 'company_id' not in session:
+    if "access_token" not in session or "company_id" not in session:
         return jsonify({"error": "Not connected to QuickBooks"}), 401
     
     import pandas as pd
@@ -563,26 +562,26 @@ def export_transactions_qbo_style():
     if isinstance(transactions_data, tuple):
         return transactions_data
     
-    transactions = transactions_data.get_json()['transactions']
+    transactions = transactions_data.get_json()["transactions"]
     
     # Create DataFrame
     df = pd.DataFrame(transactions)
     
     if df.empty:
-        return Response("No data available", mimetype='text/csv')
+        return Response("No data available", mimetype="text/csv")
     
     # Create CSV content with QBO-style formatting
     output = io.StringIO()
-    df.to_csv(output, index=False, encoding='utf-8')
+    df.to_csv(output, index=False, encoding="utf-8")
     csv_content = output.getvalue()
     output.close()
     
     return Response(
         csv_content,
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=quickbooks_transactions_qbo_style.csv'}
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=quickbooks_transactions_qbo_style.csv"}
     )
-
+@app.route('/tokens')
 
 # Enhanced Pandas-based Transaction Endpoint
 @app.route('/api/transactions/pandas')
