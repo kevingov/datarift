@@ -28,9 +28,9 @@ else:
     QB_OAUTH_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
     QB_API_BASE_URL = "https://quickbooks.api.intuit.com/v3/company"
 
-@app.route('/')
+@app.route("/")
 def index():
-    return '''
+    return """
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -44,209 +44,122 @@ def index():
                 color: white;
                 padding: 100px 0;
             }
-
-            function loadPandasTransactions() {
-                const tbody = document.getElementById('pandas-transactions-tbody');
-                const summary = document.getElementById('pandas-summary');
-                const stats = document.getElementById('pandas-stats');
-                
-                // Show loading state
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
-                
-                fetch('/api/transactions/pandas')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.error}</td></tr>`;
-                            return;
-                        }
-                        
-                        const transactions = data.transactions || [];
-                        const summary_data = data.summary || {};
-                        const pandas_info = data.pandas_info || {};
-                        
-                        // Update summary with enhanced stats
-                        let summaryHtml = '<div class="row">';
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center"><h6>Total Transactions</h6><h4>${data.total_count || 0}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center"><h6>Total Amount</h6><h4>$${(summary_data.total_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center"><h6>Average Amount</h6><h4>$${(summary_data.average_amount || 0).toFixed(2)}</h4></div></div></div>`;
-                        summaryHtml += `<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center"><h6>Date Range</h6><h6>${summary_data.date_range?.earliest || 'N/A'} to ${summary_data.date_range?.latest || 'N/A'}</h6></div></div></div>`;
-                        summaryHtml += '</div>';
-                        
-                        // Add type breakdown
-                        if (summary_data.by_type) {
-                            summaryHtml += '<div class="row mt-3"><div class="col-12"><h6>Transactions by Type:</h6>';
-                            for (const [type, count] of Object.entries(summary_data.by_type)) {
-                                summaryHtml += `<span class="badge bg-secondary me-2">${type}: ${count}</span>`;
-                            }
-                            summaryHtml += '</div></div>';
-                        }
-                        
-                        summary.innerHTML = summaryHtml;
-                        
-                        // Update table
-                        if (transactions.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No transactions found</td></tr>';
-                            return;
-                        }
-                        
-                        tbody.innerHTML = transactions.map(transaction => `
-                            <tr>
-                                <td>${transaction.id || ''}</td>
-                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
-                                <td>${transaction.date || ''}</td>
-                                <td class="text-end fw-bold">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                <td>${transaction.description || ''}</td>
-                                <td>${transaction.reference || ''}</td>
-                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
-                                <td>${transaction.created_time || ''}</td>
-                            </tr>
-                        `).join('');
-                        
-                        // Add pandas statistics
-                        let statsHtml = '<div class="row mt-3">';
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Data Shape: ${pandas_info.shape?.[0] || 0} rows × ${pandas_info.shape?.[1] || 0} columns</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Memory Usage: ${pandas_info.memory_usage || 'N/A'}</small></div>`;
-                        statsHtml += `<div class="col-md-4"><small class="text-muted">Columns: ${pandas_info.columns?.join(', ') || 'N/A'}</small></div>`;
-                        statsHtml += '</div>';
-                        stats.innerHTML = statsHtml;
-                    })
-                    .catch(error => {
-                        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-                    });
+            .feature-card {
+                transition: transform 0.3s ease;
+                border: none;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
-
-            function exportPandasCSV() {
-                window.open('/api/transactions/export/pandas', '_blank');
+            .feature-card:hover {
+                transform: translateY(-5px);
             }
-
-            function exportExcel() {
-                window.open("/api/transactions/export/excel", "_blank");
-            }
-
-            function loadQBOTransactions() {
-                const container = document.getElementById("qbo-transactions-container");
-                const loading = document.getElementById("qbo-loading");
-                
-                loading.style.display = "block";
-                container.innerHTML = "";
-                
-                fetch("/api/transactions/qbo-style")
-                    .then(response => response.json())
-                    .then(data => {
-                        loading.style.display = "none";
-                        
-                        if (data.error) {
-                            container.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                            return;
-                        }
-                        
-                        if (data.transactions && data.transactions.length > 0) {
-                            // Create QBO-style table
-                            let tableHTML = `
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover">
-                                        <thead class="table-dark">
-                                            <tr>
-                                                <th>Transaction Date</th>
-                                                <th>Distribution Account</th>
-                                                <th>Name</th>
-                                                <th>Transaction Type</th>
-                                                <th>Memo/Description</th>
-                                                <th>Item Split Account</th>
-                                                <th>Amount</th>
-                                                <th>Customer</th>
-                                                <th>Supplier</th>
-                                                <th>Account Type</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                            `;
-                            
-                            data.transactions.forEach(transaction => {
-                                const amountClass = transaction.Amount < 0 ? "text-danger" : "text-success";
-                                tableHTML += `
-                                    <tr>
-                                        <td>${transaction["Transaction date"] || ""}</td>
-                                        <td>${transaction["Distribution account"] || ""}</td>
-                                        <td>${transaction["Name"] || ""}</td>
-                                        <td>${transaction["Transaction type"] || ""}</td>
-                                        <td>${transaction["Memo/Description"] || ""}</td>
-                                        <td>${transaction["Item split account full name"] || ""}</td>
-                                        <td class="${amountClass}">$${Math.abs(transaction.Amount).toFixed(2)}</td>
-                                        <td>${transaction["Customer"] || ""}</td>
-                                        <td>${transaction["Supplier"] || ""}</td>
-                                        <td>${transaction["Distribution account type"] || ""}</td>
-                                    </tr>
-                                `;
-                            });
-                            
-                            tableHTML += `
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `;
-                            
-                            // Add summary cards
-                            if (data.summary) {
-                                tableHTML += `
-                                    <div class="row mt-3">
-                                        <div class="col-md-3">
-                                            <div class="card bg-primary text-white">
-                                                <div class="card-body text-center">
-                                                    <h6>Total Transactions</h6>
-                                                    <h4>${data.total_count}</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-success text-white">
-                                                <div class="card-body text-center">
-                                                    <h6>Total Amount</h6>
-                                                    <h4>$${data.summary.total_amount ? data.summary.total_amount.toFixed(2) : "0.00"}</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-info text-white">
-                                                <div class="card-body text-center">
-                                                    <h6>Average Amount</h6>
-                                                    <h4>$${data.summary.average_amount ? data.summary.average_amount.toFixed(2) : "0.00"}</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-warning text-white">
-                                                <div class="card-body text-center">
-                                                    <h6>Date Range</h6>
-                                                    <small>${data.summary.date_range.earliest} to ${data.summary.date_range.latest}</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                            
-                            container.innerHTML = tableHTML;
-                        } else {
-                            container.innerHTML = "<div class=\"alert alert-info\">No QBO-style transaction data available</div>";
-                        }
-                    })
-                    .catch(error => {
-                        loading.style.display = "none";
-                        container.innerHTML = `<div class="alert alert-danger">Error loading QBO transactions: ${error.message}</div>`;
-                    });
-            }
-
-            function exportQBOTransactions() {
-                window.open("/api/transactions/export/qbo-style", "_blank");
-            }
-
-        </script>
+        </style>
+    </head>
+    <body>
+        <div class="hero-section text-center">
+            <div class="container">
+                <h1 class="display-4 fw-bold mb-4">DataRift</h1>
+                <p class="lead mb-5">Connect to QuickBooks and analyze your business data in real-time</p>
+                <a href="/auth" class="btn btn-light btn-lg px-5">Connect to QuickBooks</a>
+            </div>
+        </div>
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Real-time Data</h5>
+                            <p class="card-text">Get live data from your QuickBooks account</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Easy Analysis</h5>
+                            <p class="card-text">Analyze your business data with powerful tools</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Export Data</h5>
+                            <p class="card-text">Export your data in various formats</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
-    '''
+    """
+
+@app.route("/auth")
+def auth():
+    state = str(uuid.uuid4())
+    session["oauth_state"] = state
+    session.permanent = True
+
+    scope = "com.intuit.quickbooks.accounting"
+    auth_url = (
+        f"{QB_OAUTH_AUTHORIZE_URL}?"
+        f"client_id={QB_CLIENT_ID}&"
+        f"scope={scope}&"
+        f"redirect_uri={QB_REDIRECT_URI}&"
+        f"response_type=code&"
+        f"state={state}&"
+        f"access_type=offline"
+    )
+    return redirect(auth_url)
+
+@app.route("/callback")
+def callback():
+    code = request.args.get("code")
+    state = request.args.get("state")
+    realm_id = request.args.get("realmId")
+
+    if not code or not state:
+        return "Missing authorization code or state", 400
+
+    if state != session.get("oauth_state"):
+        return "Invalid state parameter", 400
+
+    # Exchange code for tokens
+    token_data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": QB_REDIRECT_URI
+    }
+
+    auth_string = f"{QB_CLIENT_ID}:{QB_CLIENT_SECRET}"
+    auth_header = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+
+    headers = {
+        "Authorization": f"Basic {auth_header}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    response = requests.post(QB_OAUTH_TOKEN_URL, data=token_data, headers=headers)
+    
+    if response.status_code == 200:
+        token_response = response.json()
+        session["access_token"] = token_response["access_token"]
+        session["refresh_token"] = token_response["refresh_token"]
+        session["company_id"] = realm_id
+        session["expires_in"] = token_response["expires_in"]
+        session["x_refresh_token_expires_in"] = token_response["x_refresh_token_expires_in"]
+        return redirect("/dashboard")
+    else:
+        return f"Token exchange failed: {response.status_code} - {response.text}", 400
+
+@app.route("/dashboard")
+def dashboard():
+    if "access_token" not in session:
+        flash("Please connect to QuickBooks first.", "warning")
+        return redirect("/")
+    
+    return render_template("dashboard.html")
 
 def make_quickbooks_api_call(query):
     if 'access_token' not in session or 'company_id' not in session:
