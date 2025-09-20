@@ -241,6 +241,52 @@ def dashboard():
                 </div>
             </div>
 
+            <!-- Transaction Data Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="text-center mb-4">💳 Transaction Data</h3>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">📝 Journal Entries</h5>
+                            <p class="card-text">General accounting transactions</p>
+                            <button class="btn btn-success" onclick="loadData('journal_entries')">Load Journal Entries</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">💵 Deposits</h5>
+                            <p class="card-text">Money coming into your business</p>
+                            <button class="btn btn-success" onclick="loadData('deposits')">Load Deposits</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">💸 Expenses</h5>
+                            <p class="card-text">Money going out of your business</p>
+                            <button class="btn btn-success" onclick="loadData('expenses')">Load Expenses</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🔄 Transfers</h5>
+                            <p class="card-text">Money moving between accounts</p>
+                            <button class="btn btn-success" onclick="loadData('transfers')">Load Transfers</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="card">
@@ -353,6 +399,35 @@ def get_items():
         return jsonify(data[0]), data[1]
     return jsonify(data.get('QueryResponse', {}).get('Item', []))
 
+# Transaction Data Endpoints
+@app.route('/api/journal_entries')
+def get_journal_entries():
+    data = make_quickbooks_api_call("SELECT * FROM JournalEntry")
+    if isinstance(data, tuple):
+        return jsonify(data[0]), data[1]
+    return jsonify(data.get('QueryResponse', {}).get('JournalEntry', []))
+
+@app.route('/api/deposits')
+def get_deposits():
+    data = make_quickbooks_api_call("SELECT * FROM Deposit")
+    if isinstance(data, tuple):
+        return jsonify(data[0]), data[1]
+    return jsonify(data.get('QueryResponse', {}).get('Deposit', []))
+
+@app.route('/api/expenses')
+def get_expenses():
+    data = make_quickbooks_api_call("SELECT * FROM Purchase")
+    if isinstance(data, tuple):
+        return jsonify(data[0]), data[1]
+    return jsonify(data.get('QueryResponse', {}).get('Purchase', []))
+
+@app.route('/api/transfers')
+def get_transfers():
+    data = make_quickbooks_api_call("SELECT * FROM Transfer")
+    if isinstance(data, tuple):
+        return jsonify(data[0]), data[1]
+    return jsonify(data.get('QueryResponse', {}).get('Transfer', []))
+
 @app.route('/api/sync')
 def sync_data():
     # Get counts safely
@@ -360,6 +435,10 @@ def sync_data():
     invoice_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Invoice")
     item_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Item")
     payment_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Payment")
+    journal_result = make_quickbooks_api_call("SELECT COUNT(*) FROM JournalEntry")
+    deposit_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Deposit")
+    expense_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Purchase")
+    transfer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Transfer")
     
     # Handle errors safely
     def safe_get_count(result):
@@ -373,7 +452,11 @@ def sync_data():
             "customers": safe_get_count(customer_result),
             "invoices": safe_get_count(invoice_result),
             "items": safe_get_count(item_result),
-            "payments": safe_get_count(payment_result)
+            "payments": safe_get_count(payment_result),
+            "journal_entries": safe_get_count(journal_result),
+            "deposits": safe_get_count(deposit_result),
+            "expenses": safe_get_count(expense_result),
+            "transfers": safe_get_count(transfer_result)
         },
         "status": "success"
     })
