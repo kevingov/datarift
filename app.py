@@ -44,14 +44,176 @@ def index():
                 color: white;
                 padding: 100px 0;
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
             .feature-card {
                 transition: transform 0.3s ease;
                 border: none;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
             .feature-card:hover {
                 transform: translateY(-5px);
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
         </style>
     </head>
     <body>
@@ -183,14 +345,176 @@ def dashboard():
                 color: white;
                 padding: 2rem 0;
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
             .data-card {
                 transition: transform 0.3s ease;
                 border: none;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
             .data-card:hover {
                 transform: translateY(-2px);
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
         </style>
     </head>
     <body>
@@ -288,6 +612,45 @@ def dashboard():
             </div>
 
             <div class="row mt-4">
+
+            <!-- Unified Transaction Table Section -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">📊 Unified Transaction Table</h5>
+                            <div>
+                                <button class="btn btn-info btn-sm me-2" onclick="loadUnifiedTransactions()">🔄 Refresh</button>
+                                <button class="btn btn-success btn-sm" onclick="exportTransactions()">📥 Export CSV</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="transaction-summary" class="mb-3"></div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="transactions-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Type</th>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Description</th>
+                                            <th>Reference</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transactions-tbody">
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">Click "Refresh" to load transactions</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
@@ -303,6 +666,45 @@ def dashboard():
             </div>
 
             <div class="row mt-4">
+
+            <!-- Unified Transaction Table Section -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">📊 Unified Transaction Table</h5>
+                            <div>
+                                <button class="btn btn-info btn-sm me-2" onclick="loadUnifiedTransactions()">🔄 Refresh</button>
+                                <button class="btn btn-success btn-sm" onclick="exportTransactions()">📥 Export CSV</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="transaction-summary" class="mb-3"></div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="transactions-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Type</th>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Description</th>
+                                            <th>Reference</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transactions-tbody">
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">Click "Refresh" to load transactions</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
                 <div class="col-12 text-center">
                     <button class="btn btn-success btn-lg" onclick="syncAllData()">🔄 Sync All Data</button>
                     <a href="/" class="btn btn-secondary btn-lg ms-3">← Back to Home</a>
@@ -325,6 +727,60 @@ def dashboard():
                     });
             }
 
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
+
             function syncAllData() {
                 const display = document.getElementById('data-display');
                 display.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Syncing...</span></div></div>';
@@ -338,6 +794,60 @@ def dashboard():
                         display.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
                     });
             }
+
+            function loadUnifiedTransactions() {
+                const tbody = document.getElementById('transactions-tbody');
+                const summary = document.getElementById('transaction-summary');
+                
+                // Show loading state
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Loading transactions...</td></tr>';
+                
+                fetch('/api/transactions')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${data.error}</td></tr>`;
+                            return;
+                        }
+                        
+                        const transactions = data.transactions || [];
+                        const summary_data = data.summary || {};
+                        
+                        // Update summary
+                        let summaryHtml = '<div class="row">';
+                        for (const [type, count] of Object.entries(summary_data.by_type || {})) {
+                            summaryHtml += `<div class="col-md-2"><span class="badge bg-primary me-1">${type}: ${count}</span></div>`;
+                        }
+                        summaryHtml += `<div class="col-md-2"><span class="badge bg-success">Total: ${data.total_count || 0}</span></div></div>`;
+                        summary.innerHTML = summaryHtml;
+                        
+                        // Update table
+                        if (transactions.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No transactions found</td></tr>';
+                            return;
+                        }
+                        
+                        tbody.innerHTML = transactions.map(transaction => `
+                            <tr>
+                                <td>${transaction.id || ''}</td>
+                                <td><span class="badge bg-secondary">${transaction.type || ''}</span></td>
+                                <td>${transaction.date || ''}</td>
+                                <td class="text-end">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                <td>${transaction.description || ''}</td>
+                                <td>${transaction.reference || ''}</td>
+                                <td><span class="badge bg-info">${transaction.status || ''}</span></td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(error => {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                    });
+            }
+
+            function exportTransactions() {
+                window.open('/api/transactions/export', '_blank');
+            }
+
         </script>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
