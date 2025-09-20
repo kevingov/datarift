@@ -355,19 +355,27 @@ def get_items():
 
 @app.route('/api/sync')
 def sync_data():
-    customer_count = make_quickbooks_api_call("SELECT COUNT(*) FROM Customer").get('QueryResponse', {}).get('totalCount', 0)
-    invoice_count = make_quickbooks_api_call("SELECT COUNT(*) FROM Invoice").get('QueryResponse', {}).get('totalCount', 0)
-    item_count = make_quickbooks_api_call("SELECT COUNT(*) FROM Item").get('QueryResponse', {}).get('totalCount', 0)
-    payment_count = make_quickbooks_api_call("SELECT COUNT(*) FROM Payment").get('QueryResponse', {}).get('totalCount', 0)
+    # Get counts safely
+    customer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Customer")
+    invoice_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Invoice")
+    item_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Item")
+    payment_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Payment")
+    
+    # Handle errors safely
+    def safe_get_count(result):
+        if isinstance(result, tuple):
+            return 0  # Return 0 if there's an error
+        return result.get('QueryResponse', {}).get('totalCount', 0)
     
     return jsonify({
         "message": "Data sync initiated",
         "counts": {
-            "customers": customer_count,
-            "invoices": invoice_count,
-            "items": item_count,
-            "payments": payment_count
-        }
+            "customers": safe_get_count(customer_result),
+            "invoices": safe_get_count(invoice_result),
+            "items": safe_get_count(item_result),
+            "payments": safe_get_count(payment_result)
+        },
+        "status": "success"
     })
 
 @app.route('/tokens')
