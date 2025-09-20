@@ -1,0 +1,200 @@
+    return '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DataRift Dashboard</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .dashboard-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 2rem 0;
+            }
+            .data-card {
+                transition: transform 0.3s ease;
+                border: none;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .data-card:hover {
+                transform: translateY(-2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="dashboard-header">
+            <div class="container">
+                <h1 class="display-5 fw-bold">DataRift Dashboard</h1>
+                <p class="lead">Your QuickBooks data at a glance</p>
+            </div>
+        </div>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">👥 Customers</h5>
+                            <p class="card-text">View and manage your customer data</p>
+                            <button class="btn btn-primary" onclick="loadData('customers')">Load Customers</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">📄 Invoices</h5>
+                            <p class="card-text">Access your invoice information</p>
+                            <button class="btn btn-primary" onclick="loadData('invoices')">Load Invoices</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">💰 Payments</h5>
+                            <p class="card-text">Track payment transactions</p>
+                            <button class="btn btn-primary" onclick="loadData('payments')">Load Payments</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">📦 Items</h5>
+                            <p class="card-text">Manage your product catalog</p>
+                            <button class="btn btn-primary" onclick="loadData('items')">Load Items</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Data Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="text-center mb-4">💳 Transaction Data</h3>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">📝 Journal Entries</h5>
+                            <p class="card-text">General accounting transactions</p>
+                            <button class="btn btn-success" onclick="loadData('journal_entries')">Load Journal Entries</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">💵 Deposits</h5>
+                            <p class="card-text">Money coming into your business</p>
+                            <button class="btn btn-success" onclick="loadData('deposits')">Load Deposits</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">💸 Expenses</h5>
+                            <p class="card-text">Money going out of your business</p>
+                            <button class="btn btn-success" onclick="loadData('expenses')">Load Expenses</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card data-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🔄 Transfers</h5>
+                            <p class="card-text">Money moving between accounts</p>
+                            <button class="btn btn-success" onclick="loadData('transfers')">Load Transfers</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Data Viewer</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="data-display">
+                                <p class="text-muted">Click a button above to load data</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <button class="btn btn-success btn-lg" onclick="syncAllData()">🔄 Sync All Data</button>
+                    <a href="/" class="btn btn-secondary btn-lg ms-3">← Back to Home</a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function loadData(type) {
+                const display = document.getElementById('data-display');
+                display.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                
+                fetch(`/api/${type}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        display.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    })
+                    .catch(error => {
+                        display.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+                    });
+            }
+
+            function syncAllData() {
+                const display = document.getElementById('data-display');
+                display.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Syncing...</span></div></div>';
+                
+                fetch('/api/sync')
+                    .then(response => response.json())
+                    .then(data => {
+                        display.innerHTML = `<div class="alert alert-success"><h5>Sync Complete!</h5><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                    })
+                    .catch(error => {
+                        display.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+                    });
+            }
+        </script>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
+    </html>
+    '''
+
+def make_quickbooks_api_call(query):
+    if 'access_token' not in session or 'company_id' not in session:
+        return {"error": "Not connected to QuickBooks"}, 401
+
+    access_token = session['access_token']
+    company_id = session['company_id']
+    
+    # Encode the query for URL
+    encoded_query = quote_plus(query)
+    
+    url = f"{QB_API_BASE_URL}/{company_id}/query?query={encoded_query}&minorversion=69"
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Accept': 'application/json'
+    }
+    try:
+        print(f"Making QB query: {query}")
+        print(f"URL: {url}")
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        print(f"Response status: {response.status_code}")
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error making QB request: {response.status_code} - {response.text}")
