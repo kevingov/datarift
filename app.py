@@ -2881,6 +2881,251 @@ def sync_data():
     })
 
 @app.route('/tokens')
+
+# Enhanced Pandas-based Transaction Endpoint
+@app.route('/api/transactions/pandas')
+def get_transactions_pandas():
+    """Get all transactions using pandas for better data processing"""
+    if 'access_token' not in session or 'company_id' not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    from datetime import datetime
+    
+    unified_transactions = []
+    
+    # Helper function to standardize transaction data
+    def standardize_transaction(transaction, transaction_type):
+        """Convert different transaction types to a common format"""
+        base_data = {
+            'id': transaction.get('Id', ''),
+            'type': transaction_type,
+            'date': transaction.get('TxnDate', ''),
+            'amount': 0,
+            'description': '',
+            'reference': transaction.get('DocNumber', ''),
+            'status': 'Unknown',
+            'created_time': transaction.get('MetaData', {}).get('CreateTime', ''),
+            'last_modified': transaction.get('MetaData', {}).get('LastUpdatedTime', '')
+        }
+        
+        # Extract amount based on transaction type
+        if transaction_type == 'JournalEntry':
+            # Sum up all line amounts
+            total_amount = 0
+            for line in transaction.get('Line', []):
+                if 'Amount' in line:
+                    total_amount += float(line['Amount'])
+            base_data['amount'] = total_amount
+            base_data['description'] = transaction.get('DocNumber', 'Journal Entry')
+            
+        elif transaction_type == 'Deposit':
+            base_data['amount'] = float(transaction.get('TotalAmt', 0))
+            base_data['description'] = f"Deposit - {transaction.get('DocNumber', 'No Ref')}"
+            base_data['status'] = 'Completed'
+            
+        elif transaction_type == 'Purchase':
+            base_data['amount'] = float(transaction.get('TotalAmt', 0))
+            base_data['description'] = f"Expense - {transaction.get('DocNumber', 'No Ref')}"
+            base_data['status'] = 'Completed'
+            
+        elif transaction_type == 'Transfer':
+            base_data['amount'] = float(transaction.get('Amount', 0))
+            base_data['description'] = f"Transfer - {transaction.get('DocNumber', 'No Ref')}"
+            base_data['status'] = 'Completed'
+            
+        elif transaction_type == 'Payment':
+            base_data['amount'] = float(transaction.get('TotalAmt', 0))
+            base_data['description'] = f"Payment - {transaction.get('DocNumber', 'No Ref')}"
+            base_data['status'] = 'Completed'
+            
+        elif transaction_type == 'Invoice':
+            base_data['amount'] = float(transaction.get('TotalAmt', 0))
+            base_data['description'] = f"Invoice - {transaction.get('DocNumber', 'No Ref')}"
+            base_data['status'] = transaction.get('EmailStatus', 'Unknown')
+            
+        return base_data
+    
+    # Fetch all transaction types
+    transaction_types = [
+        ('JournalEntry', 'Journal Entries'),
+        ('Deposit', 'Deposits'),
+        ('Purchase', 'Expenses'),
+        ('Transfer', 'Transfers'),
+        ('Payment', 'Payments'),
+        ('Invoice', 'Invoices')
+    ]
+    
+    for entity_type, display_name in transaction_types:
+        try:
+            result = make_quickbooks_api_call(f"SELECT * FROM {entity_type}")
+            
+            if isinstance(result, tuple):
+                print(f"Error fetching {display_name}: {result[0]}")
+                continue
+                
+            transactions = result.get('QueryResponse', {}).get(entity_type, [])
+            
+            for transaction in transactions:
+                standardized = standardize_transaction(transaction, entity_type)
+                unified_transactions.append(standardized)
+                
+        except Exception as e:
+            print(f"Error processing {display_name}: {str(e)}")
+            continue
+    
+    # Convert to pandas DataFrame
+    df = pd.DataFrame(unified_transactions)
+    
+    if df.empty:
+        return jsonify({
+            'transactions': [],
+            'total_count': 0,
+            'summary': {},
+            'pandas_info': 'No data available'
+        })
+    
+    # Convert date columns to datetime
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df['created_time'] = pd.to_datetime(df['created_time'], errors='coerce')
+    df['last_modified'] = pd.to_datetime(df['last_modified'], errors='coerce')
+    
+    # Sort by date (most recent first)
+    df = df.sort_values('date', ascending=False)
+    
+    # Create summary statistics
+    summary = {
+        'by_type': df['type'].value_counts().to_dict(),
+        'total_amount': df['amount'].sum(),
+        'average_amount': df['amount'].mean(),
+        'date_range': {
+            'earliest': df['date'].min().strftime('%Y-%m-%d') if not df['date'].isna().all() else 'N/A',
+            'latest': df['date'].max().strftime('%Y-%m-%d') if not df['date'].isna().all() else 'N/A'
+        },
+        'amount_by_type': df.groupby('type')['amount'].sum().to_dict()
+    }
+    
+    # Convert DataFrame back to list of dictionaries for JSON response
+    transactions_list = df.fillna('').to_dict('records')
+    
+    return jsonify({
+        'transactions': transactions_list,
+        'total_count': len(transactions_list),
+        'summary': summary,
+        'pandas_info': {
+            'shape': df.shape,
+            'columns': list(df.columns),
+            'memory_usage': f"{df.memory_usage(deep=True).sum() / 1024:.2f} KB"
+        }
+    })
+
+# Enhanced CSV Export with Pandas
+@app.route('/api/transactions/export/pandas')
+def export_transactions_pandas_csv():
+    """Export all transactions as CSV using pandas"""
+    if 'access_token' not in session or 'company_id' not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    import io
+    from flask import Response
+    
+    # Get the unified transaction data
+    transactions_data = get_transactions_pandas()
+    if isinstance(transactions_data, tuple):
+        return transactions_data
+    
+    transactions = transactions_data.get_json()['transactions']
+    
+    # Create DataFrame
+    df = pd.DataFrame(transactions)
+    
+    if df.empty:
+        return Response("No data available", mimetype='text/csv')
+    
+    # Convert date columns
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df['created_time'] = pd.to_datetime(df['created_time'], errors='coerce')
+    df['last_modified'] = pd.to_datetime(df['last_modified'], errors='coerce')
+    
+    # Format dates for CSV
+    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+    df['created_time'] = df['created_time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['last_modified'] = df['last_modified'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Create CSV content
+    output = io.StringIO()
+    df.to_csv(output, index=False, encoding='utf-8')
+    csv_content = output.getvalue()
+    output.close()
+    
+    return Response(
+        csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=quickbooks_transactions_pandas.csv'}
+    )
+
+# Excel Export with Pandas
+@app.route('/api/transactions/export/excel')
+def export_transactions_excel():
+    """Export all transactions as Excel file using pandas"""
+    if 'access_token' not in session or 'company_id' not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    import io
+    from flask import Response
+    
+    # Get the unified transaction data
+    transactions_data = get_transactions_pandas()
+    if isinstance(transactions_data, tuple):
+        return transactions_data
+    
+    transactions = transactions_data.get_json()['transactions']
+    
+    # Create DataFrame
+    df = pd.DataFrame(transactions)
+    
+    if df.empty:
+        return Response("No data available", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    
+    # Convert date columns
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df['created_time'] = pd.to_datetime(df['created_time'], errors='coerce')
+    df['last_modified'] = pd.to_datetime(df['last_modified'], errors='coerce')
+    
+    # Create Excel content
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Main transactions sheet
+        df.to_excel(writer, sheet_name='Transactions', index=False)
+        
+        # Summary sheet
+        summary_df = pd.DataFrame([
+            ['Total Transactions', len(df)],
+            ['Total Amount', f"${df['amount'].sum():.2f}"],
+            ['Average Amount', f"${df['amount'].mean():.2f}"],
+            ['Date Range', f"{df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}"]
+        ], columns=['Metric', 'Value'])
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # By type summary
+        type_summary = df.groupby('type').agg({
+            'amount': ['count', 'sum', 'mean']
+        }).round(2)
+        type_summary.columns = ['Count', 'Total Amount', 'Average Amount']
+        type_summary.to_excel(writer, sheet_name='By Type')
+    
+    output.seek(0)
+    excel_content = output.getvalue()
+    output.close()
+    
+    return Response(
+        excel_content,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=quickbooks_transactions.xlsx'}
+    )
+
 def show_tokens():
     return {
         'access_token': session.get('access_token'),
