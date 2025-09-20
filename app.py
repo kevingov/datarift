@@ -103,7 +103,7 @@ def auth():
     session['oauth_state'] = state
     session.permanent = True
 
-    scope = "com.intuit.quickbooks.accounting com.intuit.quickbooks.payment com.intuit.quickbooks.sales com.intuit.quickbooks.purchasing"
+    scope = "com.intuit.quickbooks.accounting"
     auth_url = (
         f"{QB_OAUTH_AUTHORIZE_URL}?"
         f"client_id={QB_CLIENT_ID}&"
