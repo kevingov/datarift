@@ -681,6 +681,193 @@ def export_transactions_pandas_csv():
 
 # Excel Export with Pandas
 @app.route('/api/transactions/export/excel')
+
+@app.route("/api/transactions/raw")
+
+@app.route("/raw-data")
+def raw_data_page():
+    """Display raw transaction data page"""
+    if "access_token" not in session or "company_id" not in session:
+        flash("Please connect to QuickBooks first.", "warning")
+        return redirect("/")
+    
+    return render_template("raw_data.html")
+
+def get_raw_transactions():
+    """Get all raw transaction data in one giant table"""
+    if "access_token" not in session or "company_id" not in session:
+        return jsonify({"error": "Not connected to QuickBooks"}), 401
+    
+    import pandas as pd
+    from datetime import datetime
+    
+    all_transactions = []
+    
+    # Define all transaction types to fetch
+    transaction_types = [
+        ("JournalEntry", "Journal Entry"),
+        ("Deposit", "Deposit"),
+        ("Purchase", "Purchase"),
+        ("Transfer", "Transfer"),
+        ("Payment", "Payment"),
+        ("Invoice", "Invoice"),
+        ("Bill", "Bill"),
+        ("BillPayment", "Bill Payment"),
+        ("Expense", "Expense"),
+        ("RefundReceipt", "Refund Receipt"),
+        ("CreditMemo", "Credit Memo"),
+        ("SalesReceipt", "Sales Receipt")
+    ]
+    
+    for entity_type, display_name in transaction_types:
+        try:
+            print(f"Fetching {display_name} transactions...")
+            result = make_quickbooks_api_call(f"SELECT * FROM {entity_type}")
+            
+            if isinstance(result, tuple):
+                print(f"Error fetching {display_name}: {result[0]}")
+                continue
+                
+            transactions = result.get("QueryResponse", {}).get(entity_type, [])
+            
+            for transaction in transactions:
+                # Flatten the transaction data
+                flat_transaction = {
+                    "Transaction_Type": display_name,
+                    "ID": transaction.get("Id", ""),
+                    "SyncToken": transaction.get("SyncToken", ""),
+                    "MetaData_CreateTime": transaction.get("MetaData", {}).get("CreateTime", ""),
+                    "MetaData_LastUpdatedTime": transaction.get("MetaData", {}).get("LastUpdatedTime", ""),
+                    "DocNumber": transaction.get("DocNumber", ""),
+                    "TxnDate": transaction.get("TxnDate", ""),
+                    "TotalAmt": transaction.get("TotalAmt", 0),
+                    "CurrencyRef": transaction.get("CurrencyRef", {}).get("value", ""),
+                    "PrivateNote": transaction.get("PrivateNote", ""),
+                    "LineCount": transaction.get("LineCount", 0)
+                }
+                
+                # Add customer info if available
+                if "CustomerRef" in transaction:
+                    flat_transaction["Customer_ID"] = transaction["CustomerRef"].get("value", "")
+                    flat_transaction["Customer_Name"] = transaction["CustomerRef"].get("name", "")
+                else:
+                    flat_transaction["Customer_ID"] = ""
+                    flat_transaction["Customer_Name"] = ""
+                
+                # Add vendor info if available
+                if "VendorRef" in transaction:
+                    flat_transaction["Vendor_ID"] = transaction["VendorRef"].get("value", "")
+                    flat_transaction["Vendor_Name"] = transaction["VendorRef"].get("name", "")
+                else:
+                    flat_transaction["Vendor_ID"] = ""
+                    flat_transaction["Vendor_Name"] = ""
+                
+                # Add account info if available
+                if "DepositToAccountRef" in transaction:
+                    flat_transaction["DepositToAccount_ID"] = transaction["DepositToAccountRef"].get("value", "")
+                    flat_transaction["DepositToAccount_Name"] = transaction["DepositToAccountRef"].get("name", "")
+                else:
+                    flat_transaction["DepositToAccount_ID"] = ""
+                    flat_transaction["DepositToAccount_Name"] = ""
+                
+                # Add payment method if available
+                if "PaymentMethodRef" in transaction:
+                    flat_transaction["PaymentMethod_ID"] = transaction["PaymentMethodRef"].get("value", "")
+                    flat_transaction["PaymentMethod_Name"] = transaction["PaymentMethodRef"].get("name", "")
+                else:
+                    flat_transaction["PaymentMethod_ID"] = ""
+                    flat_transaction["PaymentMethod_Name"] = ""
+                
+                # Add line items details
+                if "Line" in transaction and transaction["Line"]:
+                    line_items = []
+                    for line in transaction["Line"]:
+                        line_detail = {
+                            "LineId": line.get("Id", ""),
+                            "LineNum": line.get("LineNum", ""),
+                            "Description": line.get("Description", ""),
+                            "Amount": line.get("Amount", 0),
+                            "DetailType": line.get("DetailType", "")
+                        }
+                        
+                        # Add account info for line items
+                        if "AccountBasedExpenseLineDetail" in line:
+                            account_detail = line["AccountBasedExpenseLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                        elif "JournalEntryLineDetail" in line:
+                            account_detail = line["JournalEntryLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                        elif "DepositLineDetail" in line:
+                            account_detail = line["DepositLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                        else:
+                            line_detail["Account_ID"] = ""
+                            line_detail["Account_Name"] = ""
+                        
+                        line_items.append(line_detail)
+                    
+                    flat_transaction["Line_Items"] = line_items
+                    flat_transaction["Line_Items_Count"] = len(line_items)
+                else:
+                    flat_transaction["Line_Items"] = []
+                    flat_transaction["Line_Items_Count"] = 0
+                
+                # Add raw JSON for complete data
+                flat_transaction["Raw_JSON"] = str(transaction)
+                
+                all_transactions.append(flat_transaction)
+                
+        except Exception as e:
+            print(f"Error processing {display_name}: {str(e)}")
+            continue
+    
+    # Convert to pandas DataFrame
+    df = pd.DataFrame(all_transactions)
+    
+    if df.empty:
+        return jsonify({
+            "transactions": [],
+            "total_count": 0,
+            "summary": {},
+            "raw_format": True
+        })
+    
+    # Sort by date (most recent first)
+    df["TxnDate"] = pd.to_datetime(df["TxnDate"], errors="coerce")
+    df = df.sort_values("TxnDate", ascending=False)
+    
+    # Format date back to string for JSON
+    df["TxnDate"] = df["TxnDate"].dt.strftime("%Y-%m-%d")
+    
+    # Create summary statistics
+    summary = {
+        "by_type": df["Transaction_Type"].value_counts().to_dict(),
+        "total_amount": df["TotalAmt"].sum(),
+        "average_amount": df["TotalAmt"].mean(),
+        "date_range": {
+            "earliest": df["TxnDate"].min() if not df["TxnDate"].isna().all() else "N/A",
+            "latest": df["TxnDate"].max() if not df["TxnDate"].isna().all() else "N/A"
+        },
+        "amount_by_type": df.groupby("Transaction_Type")["TotalAmt"].sum().to_dict(),
+        "total_transactions": len(df),
+        "unique_customers": df["Customer_Name"].nunique(),
+        "unique_vendors": df["Vendor_Name"].nunique()
+    }
+    
+    # Convert DataFrame back to list of dictionaries for JSON response
+    transactions_list = df.fillna("").to_dict("records")
+    
+    return jsonify({
+        "transactions": transactions_list,
+        "total_count": len(transactions_list),
+        "summary": summary,
+        "raw_format": True,
+        "columns": list(df.columns)
+    })
+
 def export_transactions_excel():
     """Export all transactions as Excel file using pandas"""
     if 'access_token' not in session or 'company_id' not in session:
