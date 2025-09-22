@@ -215,6 +215,12 @@ def get_items():
         return jsonify(data[0]), data[1]
     return jsonify(data.get('QueryResponse', {}).get('Item', []))
 
+@app.route("/api/classes")
+def get_classes():
+    data = make_quickbooks_api_call("SELECT * FROM Class")
+    if isinstance(data, tuple):
+        return jsonify(data[0]), data[1]
+    return jsonify(data.get("QueryResponse", {}).get("Class", []))
 # Transaction Data Endpoints
 @app.route('/api/journal_entries')
 def get_journal_entries():
@@ -795,7 +801,63 @@ def get_raw_transactions():
                             account_detail = line["AccountBasedExpenseLineDetail"]
                             line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
                             line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
-                        elif "JournalEntryLineDetail" in line:
+                            # Add Class info from expense line detail
+                            if "ClassRef" in account_detail:
+                                line_detail["Class_ID"] = account_detail.get("ClassRef", {}).get("value", "")
+                                line_detail["Class_Name"] = account_detail.get("ClassRef", {}).get("name", "")
+                            else:
+                                line_detail["Class_ID"] = ""
+                                line_detail["Class_Name"] = ""
+                        if "JournalEntryLineDetail" in line:
+                            account_detail = line["JournalEntryLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                            # Add Class info from journal entry line detail
+                            if "ClassRef" in account_detail:
+                                line_detail["Class_ID"] = account_detail.get("ClassRef", {}).get("value", "")
+                                line_detail["Class_Name"] = account_detail.get("ClassRef", {}).get("name", "")
+                            else:
+                                line_detail["Class_ID"] = ""
+                                line_detail["Class_Name"] = ""
+                        elif "DepositLineDetail" in line:
+                            account_detail = line["DepositLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                            # Add Class info from deposit line detail
+                            if "ClassRef" in account_detail:
+                                line_detail["Class_ID"] = account_detail.get("ClassRef", {}).get("value", "")
+                                line_detail["Class_Name"] = account_detail.get("ClassRef", {}).get("name", "")
+                            else:
+                                line_detail["Class_ID"] = ""
+                                line_detail["Class_Name"] = ""
+                        elif "SalesItemLineDetail" in line:
+                            account_detail = line["SalesItemLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                            # Add Class info from sales item line detail
+                            if "ClassRef" in account_detail:
+                                line_detail["Class_ID"] = account_detail.get("ClassRef", {}).get("value", "")
+                                line_detail["Class_Name"] = account_detail.get("ClassRef", {}).get("name", "")
+                            else:
+                                line_detail["Class_ID"] = ""
+                                line_detail["Class_Name"] = ""
+                        elif "ItemBasedExpenseLineDetail" in line:
+                            account_detail = line["ItemBasedExpenseLineDetail"]
+                            line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
+                            line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
+                            # Add Class info from item based expense line detail
+                            if "ClassRef" in account_detail:
+                                line_detail["Class_ID"] = account_detail.get("ClassRef", {}).get("value", "")
+                                line_detail["Class_Name"] = account_detail.get("ClassRef", {}).get("name", "")
+                            else:
+                                line_detail["Class_ID"] = ""
+                                line_detail["Class_Name"] = ""
+                        else:
+                            line_detail["Account_ID"] = ""
+                            line_detail["Account_Name"] = ""
+                            line_detail["Class_ID"] = ""
+                            line_detail["Class_Name"] = ""
+                        if "JournalEntryLineDetail" in line:
                             account_detail = line["JournalEntryLineDetail"]
                             line_detail["Account_ID"] = account_detail.get("AccountRef", {}).get("value", "")
                             line_detail["Account_Name"] = account_detail.get("AccountRef", {}).get("name", "")
