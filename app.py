@@ -416,50 +416,34 @@ def get_transactions_qbo_style():
         qbo_row["Customer"] = customer_ref.get("name", "")
         qbo_row["Full name"] = customer_ref.get("name", "")
         
-    elif transaction_type == "Bill Payment":
-        qbo_row["Distribution account"] = "Bank Account"
-        qbo_row["Distribution account type"] = "Bank"
-        
-        # Get vendor info
-        vendor_ref = transaction.get("VendorRef", {})
-        qbo_row["Supplier"] = vendor_ref.get("name", "")
-        qbo_row["Full name"] = vendor_ref.get("name", "")
-        
-    elif transaction_type == "Expense":
-        qbo_row["Distribution account"] = "Expense Account"
-        qbo_row["Distribution account type"] = "Expense"
-        
-        # Get vendor info
-        vendor_ref = transaction.get("VendorRef", {})
-        qbo_row["Supplier"] = vendor_ref.get("name", "")
-        qbo_row["Full name"] = vendor_ref.get("name", "")
-        
-    elif transaction_type == "Refund Receipt":
-        qbo_row["Distribution account"] = "Bank Account"
-        qbo_row["Distribution account type"] = "Bank"
-        
-        # Get customer info
-        customer_ref = transaction.get("CustomerRef", {})
-        qbo_row["Customer"] = customer_ref.get("name", "")
-        qbo_row["Full name"] = customer_ref.get("name", "")
-        
-    elif transaction_type == "Credit Memo":
-        qbo_row["Distribution account"] = "Accounts Receivable"
-        qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
-        
-        # Get customer info
-        customer_ref = transaction.get("CustomerRef", {})
-        qbo_row["Customer"] = customer_ref.get("name", "")
-        qbo_row["Full name"] = customer_ref.get("name", "")
-        
-    elif transaction_type == "Sales Receipt":
-        qbo_row["Distribution account"] = "Bank Account"
-        qbo_row["Distribution account type"] = "Bank"
-        
-        # Get customer info
-        customer_ref = transaction.get("CustomerRef", {})
-        qbo_row["Customer"] = customer_ref.get("name", "")
-        qbo_row["Full name"] = customer_ref.get("name", "")
+        elif transaction_type == "Bill Payment":
+            qbo_row["Distribution account"] = "Bank Account"
+            qbo_row["Distribution account type"] = "Bank"
+            
+            # Get vendor info
+            vendor_ref = transaction.get("VendorRef", {})
+            qbo_row["Supplier"] = vendor_ref.get("name", "")
+            qbo_row["Full name"] = vendor_ref.get("name", "")
+            
+        elif transaction_type == "Expense":
+            qbo_row["Distribution account"] = "Expense Account"
+            qbo_row["Distribution account type"] = "Expense"
+            
+            # Get vendor info
+            vendor_ref = transaction.get("VendorRef", {})
+            qbo_row["Supplier"] = vendor_ref.get("name", "")
+            qbo_row["Full name"] = vendor_ref.get("name", "")
+            
+        elif transaction_type == "Refund Receipt":
+            qbo_row["Distribution account"] = "Bank Account"
+            qbo_row["Distribution account type"] = "Bank"
+            
+            # Get customer info
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
+            
+        elif transaction_type == "Credit Memo":
             qbo_row["Distribution account"] = "Accounts Receivable"
             qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
             
@@ -467,8 +451,24 @@ def get_transactions_qbo_style():
             customer_ref = transaction.get("CustomerRef", {})
             qbo_row["Customer"] = customer_ref.get("name", "")
             qbo_row["Full name"] = customer_ref.get("name", "")
-        
-        return qbo_row    # Convert to pandas DataFrame
+            
+        elif transaction_type == "Sales Receipt":
+            qbo_row["Distribution account"] = "Bank Account"
+            qbo_row["Distribution account type"] = "Bank"
+            
+            # Get customer info
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
+                qbo_row["Distribution account"] = "Accounts Receivable"
+                qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+                
+                # Get customer info
+                customer_ref = transaction.get("CustomerRef", {})
+                qbo_row["Customer"] = customer_ref.get("name", "")
+                qbo_row["Full name"] = customer_ref.get("name", "")
+            
+            return qbo_row    # Convert to pandas DataFrame
     df = pd.DataFrame(unified_transactions)
     
     if df.empty:
