@@ -66,7 +66,41 @@
                         <button class="btn btn-primary" onclick="loadData('items')">Load Items</button>
                     </div>
                 </div>
+            <div class="col-md-3 mb-4">
+                <div class="card data-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">📊 QBO-Style Transactions</h5>
+                        <p class="card-text">View transactions in QuickBooks Online format</p>
+                        <button class="btn btn-success" onclick="loadQBOData()">Load QBO Data</button>
+                    </div>
+                </div>
+            <div class="col-md-3 mb-4">
+                <div class="card data-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">📋 Raw Data</h5>
+                        <p class="card-text">View all raw transaction data</p>
+                        <a href="/raw-data" class="btn btn-warning">View Raw Data</a>
+                    </div>
+                </div>
             </div>
+            <div class="col-md-3 mb-4">
+                <div class="card data-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">🏷️ Classes</h5>
+                        <p class="card-text">View and manage your class data</p>
+                        <button class="btn btn-info" onclick="loadData('classes')">Load Classes</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card data-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">📊 All Transactions</h5>
+                        <p class="card-text">View unified transaction data</p>
+                        <button class="btn btn-secondary" onclick="loadData('transactions')">Load All</button>
+                    </div>
+                </div>
+            </div>            </div>            </div>
         </div>
         <div class="row mt-4">
             <div class="col-12">
@@ -123,3 +157,38 @@
     </script>
 </body>
 </html>
+        function loadQBOData() {
+            const display = document.getElementById("data-display");
+            display.innerHTML = "<div class='text-center'><div class='spinner-border' role='status'></div><p class='mt-2'>Loading QBO-style transactions...</p></div>";
+            fetch("/api/transactions/qbo-style")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        display.innerHTML = "<div class='alert alert-danger'>" + data.error + "</div>";
+                    } else {
+                        let html = "<h6>QBO-Style Transactions</h6>";
+                        if (data.transactions && data.transactions.length > 0) {
+                            html += "<div class='table-responsive'><table class='table table-striped'><thead><tr>";
+                            Object.keys(data.transactions[0]).forEach(key => {
+                                html += "<th>" + key + "</th>";
+                            });
+                            html += "</tr></thead><tbody>";
+                            data.transactions.forEach(item => {
+                                html += "<tr>";
+                                Object.values(item).forEach(value => {
+                                    html += "<td>" + (value || "") + "</td>";
+                                });
+                                html += "</tr>";
+                            });
+                            html += "</tbody></table></div>";
+                            html += "<div class='mt-3'><a href='/api/transactions/export/qbo-style' class='btn btn-success'>Download CSV</a></div>";
+                        } else {
+                            html += "<p class='text-muted'>No QBO-style transactions found</p>";
+                        }
+                        display.innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    display.innerHTML = "<div class='alert alert-danger'>Error: " + error.message + "</div>";
+                });
+        }
