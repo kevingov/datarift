@@ -297,14 +297,15 @@ def new_dashboard():
 
 
     return render_template("new_dashboard.html",
-        customer_count=customer_result,
-        invoice_count=invoice_result,
-        item_count=item_result,
-        payment_count=payment_result,
-        journal_count=journal_result,
-        deposit_count=deposit_result,
-        expense_count=expense_result,
-        transfer_count=transfer_result)
+       customer_data=customer_result.get("QueryResponse", {}).get("Customer", []),
+        invoice_data=invoice_result.get("QueryResponse", {}).get("Invoice", []),
+        item_data=item_result.get("QueryResponse", {}).get("Item", []),
+        payment_data=payment_result.get("QueryResponse", {}).get("Payment", []),
+        journal_data=journal_result.get("QueryResponse", {}).get("JournalEntry", []),
+        deposit_data=deposit_result.get("QueryResponse", {}).get("Deposit", []),
+        expense_data=expense_result.get("QueryResponse", {}).get("Purchase", []),
+        transfer_data=transfer_result.get("QueryResponse", {}).get("Transfer", [])
+        )
 
 # QBO-Style Transaction Endpoint
 @app.route("/api/transactions/qbo-style")
