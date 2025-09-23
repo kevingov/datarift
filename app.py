@@ -282,7 +282,29 @@ def sync_data():
         },
         "status": "success"
     })
+    
+@app.route("/new_dashboard")
+def new_dashboard():
+    # Get counts safely
+    customer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Customer")
+    invoice_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Invoice")
+    item_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Item")
+    payment_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Payment")
+    journal_result = make_quickbooks_api_call("SELECT COUNT(*) FROM JournalEntry")
+    deposit_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Deposit")
+    expense_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Purchase")
+    transfer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Transfer")
 
+
+    return render_template("new_dashboard.html",
+        customer_count=customer_result,
+        invoice_count=invoice_result,
+        item_count=item_result,
+        payment_count=payment_result,
+        journal_count=journal_result,
+        deposit_count=deposit_result,
+        expense_count=expense_result,
+        transfer_count=transfer_result)
 
 # QBO-Style Transaction Endpoint
 @app.route("/api/transactions/qbo-style")
