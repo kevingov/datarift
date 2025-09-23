@@ -334,30 +334,36 @@ def get_transactions_qbo_style():
         
         qbo_row["Amount"] = amount
         
+        # Set basic info
+        qbo_row["Name"] = transaction.get("DocNumber", transaction_type)
+        qbo_row["Memo/Description"] = transaction.get("PrivateNote", transaction.get("DocNumber", ""))
+        
         # Process based on transaction type
-        if transaction_type == "JournalEntry":
-            qbo_row["Name"] = transaction.get("DocNumber", "Journal Entry")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+        if transaction_type == "Journal Entry":
+            qbo_row["Distribution account"] = "Other"
+            qbo_row["Distribution account type"] = "Other"
             
-            # Process journal entry lines
+            # Process journal entry lines for better account info
             for line in transaction.get("Line", []):
                 if line.get("DetailType") == "JournalEntryLineDetail":
                     detail = line.get("JournalEntryLineDetail", {})
                     account = detail.get("AccountRef", {})
-                    qbo_row["Distribution account"] = account.get("name", "")
-                    qbo_row["Item split account full name"] = account.get("name", "")
-                    qbo_row["Distribution account type"] = "Other"  # Default
-                    break
-                    
+                    if account.get("name"):
+                        qbo_row["Distribution account"] = account.get("name", "")
+                        qbo_row["Item split account full name"] = account.get("name", "")
+                        break
+                        
         elif transaction_type == "Deposit":
-            qbo_row["Name"] = transaction.get("DocNumber", "Deposit")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
-            qbo_row["Distribution account"] = "Bank Account"  # Default
+            qbo_row["Distribution account"] = "Bank Account"
             qbo_row["Distribution account type"] = "Bank"
             
-        elif transaction_type == "Purchase":
-            qbo_row["Name"] = transaction.get("DocNumber", "Purchase")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+            # Get deposit account
+            deposit_account = transaction.get("DepositToAccountRef", {})
+            if deposit_account.get("name"):
+                qbo_row["Distribution account"] = deposit_account.get("name", "")
+                qbo_row["Item split account full name"] = deposit_account.get("name", "")
+                
+        elif transaction_type == "Bill":
             qbo_row["Distribution account"] = "Accounts Payable"
             qbo_row["Distribution account type"] = "Accounts payable (A/P)"
             
@@ -367,14 +373,10 @@ def get_transactions_qbo_style():
             qbo_row["Full name"] = vendor_ref.get("name", "")
             
         elif transaction_type == "Transfer":
-            qbo_row["Name"] = transaction.get("DocNumber", "Transfer")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
             qbo_row["Distribution account"] = "Bank Account"
             qbo_row["Distribution account type"] = "Bank"
             
         elif transaction_type == "Payment":
-            qbo_row["Name"] = transaction.get("DocNumber", "Payment")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
             qbo_row["Distribution account"] = "Bank Account"
             qbo_row["Distribution account type"] = "Bank"
             
@@ -384,8 +386,58 @@ def get_transactions_qbo_style():
             qbo_row["Full name"] = customer_ref.get("name", "")
             
         elif transaction_type == "Invoice":
-            qbo_row["Name"] = transaction.get("DocNumber", "Invoice")
-            qbo_row["Memo/Description"] = transaction.get("DocNumber", "")
+        qbo_row["Distribution account"] = "Accounts Receivable"
+        qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+        
+        # Get customer info
+        customer_ref = transaction.get("CustomerRef", {})
+        qbo_row["Customer"] = customer_ref.get("name", "")
+        qbo_row["Full name"] = customer_ref.get("name", "")
+        
+    elif transaction_type == "Bill Payment":
+        qbo_row["Distribution account"] = "Bank Account"
+        qbo_row["Distribution account type"] = "Bank"
+        
+        # Get vendor info
+        vendor_ref = transaction.get("VendorRef", {})
+        qbo_row["Supplier"] = vendor_ref.get("name", "")
+        qbo_row["Full name"] = vendor_ref.get("name", "")
+        
+    elif transaction_type == "Expense":
+        qbo_row["Distribution account"] = "Expense Account"
+        qbo_row["Distribution account type"] = "Expense"
+        
+        # Get vendor info
+        vendor_ref = transaction.get("VendorRef", {})
+        qbo_row["Supplier"] = vendor_ref.get("name", "")
+        qbo_row["Full name"] = vendor_ref.get("name", "")
+        
+    elif transaction_type == "Refund Receipt":
+        qbo_row["Distribution account"] = "Bank Account"
+        qbo_row["Distribution account type"] = "Bank"
+        
+        # Get customer info
+        customer_ref = transaction.get("CustomerRef", {})
+        qbo_row["Customer"] = customer_ref.get("name", "")
+        qbo_row["Full name"] = customer_ref.get("name", "")
+        
+    elif transaction_type == "Credit Memo":
+        qbo_row["Distribution account"] = "Accounts Receivable"
+        qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+        
+        # Get customer info
+        customer_ref = transaction.get("CustomerRef", {})
+        qbo_row["Customer"] = customer_ref.get("name", "")
+        qbo_row["Full name"] = customer_ref.get("name", "")
+        
+    elif transaction_type == "Sales Receipt":
+        qbo_row["Distribution account"] = "Bank Account"
+        qbo_row["Distribution account type"] = "Bank"
+        
+        # Get customer info
+        customer_ref = transaction.get("CustomerRef", {})
+        qbo_row["Customer"] = customer_ref.get("name", "")
+        qbo_row["Full name"] = customer_ref.get("name", "")
             qbo_row["Distribution account"] = "Accounts Receivable"
             qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
             
@@ -394,37 +446,7 @@ def get_transactions_qbo_style():
             qbo_row["Customer"] = customer_ref.get("name", "")
             qbo_row["Full name"] = customer_ref.get("name", "")
         
-        return qbo_row
-    
-    # Fetch all transaction types
-    transaction_types = [
-        ("JournalEntry", "Journal Entry"),
-        ("Deposit", "Deposit"),
-        ("Purchase", "Bill"),
-        ("Transfer", "Transfer"),
-        ("Payment", "Payment"),
-        ("Invoice", "Invoice")
-    ]
-    
-    for entity_type, qbo_type in transaction_types:
-        try:
-            result = make_quickbooks_api_call(f"SELECT * FROM {entity_type}")
-            
-            if isinstance(result, tuple):
-                print(f"Error fetching {qbo_type}: {result[0]}")
-                continue
-                
-            transactions = result.get("QueryResponse", {}).get(entity_type, [])
-            
-            for transaction in transactions:
-                qbo_formatted = convert_to_qbo_format(transaction, qbo_type)
-                unified_transactions.append(qbo_formatted)
-                
-        except Exception as e:
-            print(f"Error processing {qbo_type}: {str(e)}")
-            continue
-    
-    # Convert to pandas DataFrame
+        return qbo_row    # Convert to pandas DataFrame
     df = pd.DataFrame(unified_transactions)
     
     if df.empty:
@@ -568,6 +590,18 @@ def get_transactions_pandas():
     
     # Fetch all transaction types
     transaction_types = [
+        ("JournalEntry", "Journal Entry"),
+        ("Deposit", "Deposit"),
+        ("Purchase", "Bill"),
+        ("Transfer", "Transfer"),
+        ("Payment", "Payment"),
+        ("Invoice", "Invoice"),
+        ("Bill", "Bill"),
+        ("BillPayment", "Bill Payment"),
+        ("Expense", "Expense"),
+        ("RefundReceipt", "Refund Receipt"),
+        ("CreditMemo", "Credit Memo"),
+        ("SalesReceipt", "Sales Receipt")
         ('JournalEntry', 'Journal Entries'),
         ('Deposit', 'Deposits'),
         ('Purchase', 'Expenses'),
@@ -711,6 +745,18 @@ def get_raw_transactions():
     
     # Define all transaction types to fetch
     transaction_types = [
+        ("JournalEntry", "Journal Entry"),
+        ("Deposit", "Deposit"),
+        ("Purchase", "Bill"),
+        ("Transfer", "Transfer"),
+        ("Payment", "Payment"),
+        ("Invoice", "Invoice"),
+        ("Bill", "Bill"),
+        ("BillPayment", "Bill Payment"),
+        ("Expense", "Expense"),
+        ("RefundReceipt", "Refund Receipt"),
+        ("CreditMemo", "Credit Memo"),
+        ("SalesReceipt", "Sales Receipt")
         ("JournalEntry", "Journal Entry"),
         ("Deposit", "Deposit"),
         ("Purchase", "Purchase"),
