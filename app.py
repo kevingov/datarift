@@ -408,13 +408,13 @@ def get_transactions_qbo_style():
             qbo_row["Full name"] = customer_ref.get("name", "")
             
         elif transaction_type == "Invoice":
-        qbo_row["Distribution account"] = "Accounts Receivable"
-        qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
-        
-        # Get customer info
-        customer_ref = transaction.get("CustomerRef", {})
-        qbo_row["Customer"] = customer_ref.get("name", "")
-        qbo_row["Full name"] = customer_ref.get("name", "")
+            qbo_row["Distribution account"] = "Accounts Receivable"
+            qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+            
+            # Get customer info
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
         
         elif transaction_type == "Bill Payment":
             qbo_row["Distribution account"] = "Bank Account"
@@ -460,13 +460,13 @@ def get_transactions_qbo_style():
             customer_ref = transaction.get("CustomerRef", {})
             qbo_row["Customer"] = customer_ref.get("name", "")
             qbo_row["Full name"] = customer_ref.get("name", "")
-                qbo_row["Distribution account"] = "Accounts Receivable"
-                qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
+            qbo_row["Distribution account"] = "Accounts Receivable"
+            qbo_row["Distribution account type"] = "Accounts receivable (A/R)"
                 
-                # Get customer info
-                customer_ref = transaction.get("CustomerRef", {})
-                qbo_row["Customer"] = customer_ref.get("name", "")
-                qbo_row["Full name"] = customer_ref.get("name", "")
+            # Get customer info
+            customer_ref = transaction.get("CustomerRef", {})
+            qbo_row["Customer"] = customer_ref.get("name", "")
+            qbo_row["Full name"] = customer_ref.get("name", "")
             
             return qbo_row    # Convert to pandas DataFrame
     df = pd.DataFrame(unified_transactions)
