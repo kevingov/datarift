@@ -19,6 +19,14 @@
         .data-card:hover {
             transform: translateY(-2px);
         }
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .count-badge {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -30,24 +38,242 @@
     </div>
 
     <div class="container my-5">
-        <div class="row">
-            <div class="col-md-3 mb-4">
+        <!-- Customers Section -->
+        <div class="row mb-4">
+            <div class="col-12">
                 <div class="card data-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">👥 Customers</h5>
-                        <p class="card-text">View and manage your customer data</p>
-                        {{ customer_data }}
-                        {{ invoice_data }}
-                        {{ item_data }}
-                        {{ payment_data }}
-                        {{ journal_data }}
-                        {{ deposit_data }}
-                        {{ expense_data }}
-                        {{ transfer_data }}
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">👥 Customers ({{ customer_data|length }})</h5>
+                        <span class="badge bg-primary count-badge">{{ customer_data|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if customer_data %}
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Company Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for customer in customer_data %}
+                                    <tr>
+                                        <td>{{ customer.Name or 'N/A' }}</td>
+                                        <td>{{ customer.CompanyName or 'N/A' }}</td>
+                                        <td>{{ customer.PrimaryEmailAddr.Address if customer.PrimaryEmailAddr else 'N/A' }}</td>
+                                        <td>{{ customer.PrimaryPhone.FreeFormNumber if customer.PrimaryPhone else 'N/A' }}</td>
+                                        <td>${{ customer.Balance or 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No customer data available</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-    </div>
+        </div>
+
+        <!-- Invoices Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card data-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📄 Invoices ({{ invoice_data|length }})</h5>
+                        <span class="badge bg-success count-badge">{{ invoice_data|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if invoice_data %}
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Doc Number</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Total Amount</th>
+                                        <th>Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invoice in invoice_data %}
+                                    <tr>
+                                        <td>{{ invoice.DocNumber or 'N/A' }}</td>
+                                        <td>{{ invoice.CustomerRef.name if invoice.CustomerRef else 'N/A' }}</td>
+                                        <td>{{ invoice.TxnDate or 'N/A' }}</td>
+                                        <td>${{ invoice.TotalAmt or 0 }}</td>
+                                        <td>${{ invoice.Balance or 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No invoice data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card data-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📦 Items ({{ item_data|length }})</h5>
+                        <span class="badge bg-info count-badge">{{ item_data|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if item_data %}
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Unit Price</th>
+                                        <th>Qty On Hand</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in item_data %}
+                                    <tr>
+                                        <td>{{ item.Name or 'N/A' }}</td>
+                                        <td>{{ item.Type or 'N/A' }}</td>
+                                        <td>{{ item.Description or 'N/A' }}</td>
+                                        <td>${{ item.UnitPrice or 0 }}</td>
+                                        <td>{{ item.QtyOnHand or 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No item data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card data-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">💰 Payments ({{ payment_data|length }})</h5>
+                        <span class="badge bg-warning count-badge">{{ payment_data|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if payment_data %}
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Total Amount</th>
+                                        <th>Reference</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payment in payment_data %}
+                                    <tr>
+                                        <td>{{ payment.PaymentMethodRef.name if payment.PaymentMethodRef else 'N/A' }}</td>
+                                        <td>{{ payment.CustomerRef.name if payment.CustomerRef else 'N/A' }}</td>
+                                        <td>{{ payment.TxnDate or 'N/A' }}</td>
+                                        <td>${{ payment.TotalAmt or 0 }}</td>
+                                        <td>{{ payment.PaymentRefNum or 'N/A' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No payment data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Journal Entries Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card data-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📊 Journal Entries ({{ journal_data|length }})</h5>
+                        <span class="badge bg-secondary count-badge">{{ journal_data|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if journal_data %}
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Doc Number</th>
+                                        <th>Date</th>
+                                        <th>Total Amount</th>
+                                        <th>Private Note</th>
+                                        <th>Line Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for journal in journal_data %}
+                                    <tr>
+                                        <td>{{ journal.DocNumber or 'N/A' }}</td>
+                                        <td>{{ journal.TxnDate or 'N/A' }}</td>
+                                        <td>${{ journal.TotalAmt or 0 }}</td>
+                                        <td>{{ journal.PrivateNote or 'N/A' }}</td>
+                                        <td>{{ journal.LineCount or 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No journal entry data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <a href="/dashboard" class="btn btn-primary w-100">View Interactive Dashboard</a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="/raw-data" class="btn btn-warning w-100">View Raw Data</a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="/api/transactions/qbo-style" class="btn btn-success w-100">QBO Format Data</a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="/api/transactions/export/qbo-style" class="btn btn-info w-100">Download CSV</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
