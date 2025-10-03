@@ -705,7 +705,6 @@ def export_transactions_qbo_style():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=quickbooks_transactions_qbo_style.csv"}
     )
-@app.route('/tokens')
 
 # Enhanced Pandas-based Transaction Endpoint
 @app.route('/api/transactions/pandas')
@@ -1352,6 +1351,32 @@ def railway_guide():
         """
     except FileNotFoundError:
         return "Guide not found", 404
+
+@app.route("/debug-session")
+def debug_session():
+    """Debug route to check session contents"""
+    return {
+        'session_keys': list(session.keys()),
+        'has_access_token': 'access_token' in session,
+        'has_company_id': 'company_id' in session,
+        'access_token_preview': session.get('access_token', 'None')[:20] + '...' if session.get('access_token') else 'None',
+        'company_id': session.get('company_id', 'None')
+    }
+
+@app.route("/api/tokens")
+def get_tokens_json():
+    """Get QuickBooks tokens as JSON for easy copying"""
+    if 'access_token' not in session:
+        return jsonify({"error": "Not authenticated. Please connect to QuickBooks first."}), 401
+    
+    return jsonify({
+        "access_token": session.get('access_token'),
+        "company_id": session.get('company_id'),
+        "expires_in": session.get('expires_in'),
+        "refresh_token": session.get('refresh_token'),
+        "status": "success",
+        "message": "Copy these tokens to your Jupyter notebook"
+    })
 
 @app.route("/tokens")
 def display_tokens():
