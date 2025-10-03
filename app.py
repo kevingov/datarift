@@ -19,8 +19,26 @@ app.secret_key = os.getenv('SECRET_KEY', 'super-secret-key-change-this-in-produc
 # QuickBooks API Configuration
 QB_CLIENT_ID = os.getenv('QB_CLIENT_ID')
 QB_CLIENT_SECRET = os.getenv('QB_CLIENT_SECRET')
-QB_REDIRECT_URI = os.getenv('QB_REDIRECT_URI')
 QB_SANDBOX = os.getenv('QB_SANDBOX', 'False').lower() == 'true'
+
+# Auto-detect environment and set appropriate redirect URI
+def get_redirect_uri():
+    """Get the appropriate redirect URI based on environment"""
+    # Check if we have a custom redirect URI set
+    custom_uri = os.getenv('QB_REDIRECT_URI')
+    if custom_uri:
+        return custom_uri
+    
+    # Auto-detect based on common environment indicators
+    if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('PORT'):
+        # Production/Railway environment
+        railway_domain = os.getenv('RAILWAY_STATIC_URL', 'your-app.railway.app')
+        return f"https://{railway_domain}/callback"
+    else:
+        # Local development
+        return "http://localhost:5000/callback"
+
+QB_REDIRECT_URI = get_redirect_uri()
 
 # QuickBooks API Endpoints
 if QB_SANDBOX:
@@ -221,8 +239,12 @@ def index():
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">🪐 Jupyter Notebook Analysis</h5>
-                            <p class="card-text">Access our interactive Jupyter notebook for advanced data analysis and custom queries</p>
-                            <a href="/jupyter" class="btn btn-success btn-lg">Open Jupyter Lab</a>
+                            <p class="card-text">Get your QuickBooks tokens and use them in a local Jupyter notebook for advanced data analysis</p>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <a href="/tokens" class="btn btn-success btn-lg">Get Tokens for Local Jupyter</a>
+                                <a href="/config" class="btn btn-outline-info">Check OAuth Config</a>
+                                <a href="/jupyter" class="btn btn-outline-secondary">Integrated Jupyter (Advanced)</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1204,6 +1226,277 @@ def show_tokens():
         'expires_in': session.get('expires_in'),
         'x_refresh_token_expires_in': session.get('x_refresh_token_expires_in')
     }
+
+@app.route("/config")
+def show_config():
+    """Show current OAuth configuration for debugging"""
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OAuth Configuration - DataRift</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/">DataRift</a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">🔧 OAuth Configuration</h3>
+                        </div>
+                        <div class="card-body">
+                            <h5>Current Settings:</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Client ID:</strong> {QB_CLIENT_ID[:10] + '...' if QB_CLIENT_ID else 'Not set'}</li>
+                                <li class="list-group-item"><strong>Redirect URI:</strong> <code>{QB_REDIRECT_URI}</code></li>
+                                <li class="list-group-item"><strong>Environment:</strong> {'🧪 Sandbox' if QB_SANDBOX else '🚀 Production'}</li>
+                                <li class="list-group-item"><strong>Detected Environment:</strong> {'Railway' if os.getenv('RAILWAY_ENVIRONMENT') else 'Local'}</li>
+                            </ul>
+                            
+                            <div class="alert alert-info mt-4">
+                                <h6>📋 QuickBooks App Configuration Required:</h6>
+                                <p>You need to add this redirect URI to your QuickBooks app:</p>
+                                <ol>
+                                    <li>Go to <a href="https://developer.intuit.com" target="_blank">QuickBooks Developer Dashboard</a></li>
+                                    <li>Select your app</li>
+                                    <li>Go to "Keys & OAuth"</li>
+                                    <li>Add this redirect URI: <strong><code>{QB_REDIRECT_URI}</code></strong></li>
+                                    <li>Save the changes</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="alert alert-success mt-3">
+                                <h6>✅ After adding the redirect URI:</h6>
+                                <p>You can use the OAuth flow by visiting <a href="/auth">/auth</a></p>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/auth" class="btn btn-success">Test OAuth Flow</a>
+                                <a href="/" class="btn btn-secondary">← Back to Home</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route("/railway-guide")
+def railway_guide():
+    """Display Railway token access guide"""
+    try:
+        with open('RAILWAY_TOKEN_ACCESS.md', 'r') as f:
+            content = f.read()
+        
+        # Convert markdown to HTML (basic conversion)
+        html_content = content.replace('\n# ', '\n<h1>').replace('\n## ', '\n<h2>').replace('\n### ', '\n<h3>')
+        html_content = html_content.replace('\n**', '\n<strong>').replace('**', '</strong>')
+        html_content = html_content.replace('\n- ', '\n<li>').replace('\n1. ', '\n<li>')
+        html_content = html_content.replace('`', '<code>').replace('</code>', '</code>')
+        html_content = html_content.replace('\n\n', '</p><p>')
+        html_content = f"<p>{html_content}</p>"
+        
+        return f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Railway Token Access Guide - DataRift</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="/">DataRift</a>
+                    <div class="navbar-nav ms-auto">
+                        <a class="nav-link" href="/">Home</a>
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                        <a class="nav-link" href="/tokens">Get Tokens</a>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-10">
+                        <div class="card">
+                            <div class="card-body">
+                                {html_content}
+                                <div class="text-center mt-4">
+                                    <a href="/tokens" class="btn btn-success btn-lg">Get Tokens Now</a>
+                                    <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+    except FileNotFoundError:
+        return "Guide not found", 404
+
+@app.route("/tokens")
+def display_tokens():
+    """Display QuickBooks tokens for copying to local Jupyter notebook"""
+    if 'access_token' not in session:
+        return redirect(url_for('auth'))
+    
+    access_token = session.get('access_token')
+    company_id = session.get('company_id')
+    
+    # Detect if we're on Railway
+    is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('PORT'))
+    environment_name = "Railway (Production)" if is_railway else "Local Development"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>QuickBooks Tokens - DataRift</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .token-box {{
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 0.375rem;
+                padding: 1rem;
+                font-family: 'Courier New', monospace;
+                font-size: 0.9rem;
+                word-break: break-all;
+            }}
+            .copy-btn {{
+                margin-top: 0.5rem;
+            }}
+        </style>
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/">DataRift</a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">🔑 QuickBooks API Tokens</h3>
+                            <small class="text-muted">Environment: {environment_name}</small>
+                        </div>
+                        <div class="card-body">
+                            
+                            <div class="alert alert-success">
+                                <h5>✅ Ready for Local Jupyter!</h5>
+                                <p class="mb-0">Copy the tokens below and paste them into your local Jupyter notebook to start analyzing your QuickBooks data.</p>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h5>Access Token:</h5>
+                                <div class="token-box" id="access-token">{access_token}</div>
+                                <button class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('access-token')">
+                                    📋 Copy Access Token
+                                </button>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h5>Company ID:</h5>
+                                <div class="token-box" id="company-id">{company_id}</div>
+                                <button class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('company-id')">
+                                    📋 Copy Company ID
+                                </button>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h5>Quick Copy (Both Tokens):</h5>
+                                <div class="token-box" id="both-tokens">ACCESS_TOKEN = "{access_token}"
+COMPANY_ID = "{company_id}"</div>
+                                <button class="btn btn-sm btn-success copy-btn" onclick="copyToClipboard('both-tokens')">
+                                    📋 Copy Both (Ready to Paste)
+                                </button>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <h6>How to use in Jupyter:</h6>
+                                <ol>
+                                    <li>Start Jupyter locally: <code>jupyter lab</code></li>
+                                    <li>Open <code>quickbooks_api_notebook.ipynb</code></li>
+                                    <li>Paste the tokens in the authentication cell</li>
+                                    <li>Run all cells to start analyzing!</li>
+                                </ol>
+                                
+                                {f'''
+                                <div class="mt-3 p-3 bg-light rounded">
+                                    <strong>🚀 Railway Access:</strong><br>
+                                    You're accessing tokens from your deployed Railway app! This means:
+                                    <ul class="mb-0 mt-2">
+                                        <li>✅ These are live production tokens</li>
+                                        <li>✅ No local OAuth setup needed</li>
+                                        <li>✅ Use these tokens in your local Jupyter notebook</li>
+                                        <li>⚠️ Keep these tokens secure - don't share them</li>
+                                    </ul>
+                                </div>
+                                ''' if is_railway else ''}
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+                                <button class="btn btn-primary" onclick="window.location.reload()">🔄 Refresh Tokens</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function copyToClipboard(elementId) {{
+                const element = document.getElementById(elementId);
+                const text = element.textContent;
+                
+                navigator.clipboard.writeText(text).then(function() {{
+                    // Show success feedback
+                    const button = element.nextElementSibling;
+                    const originalText = button.textContent;
+                    button.textContent = '✅ Copied!';
+                    button.className = 'btn btn-sm btn-success copy-btn';
+                    
+                    setTimeout(() => {{
+                        button.textContent = originalText;
+                        button.className = 'btn btn-sm btn-outline-primary copy-btn';
+                    }}, 2000);
+                }}).catch(function(err) {{
+                    alert('Failed to copy: ' + err);
+                }});
+            }}
+        </script>
+    </body>
+    </html>
+    """
 
 # Jupyter Routes
 @app.route("/jupyter")

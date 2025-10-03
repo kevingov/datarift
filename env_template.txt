@@ -1,0 +1,17 @@
+# Copy this to .env file for local development
+# QuickBooks API Configuration
+# Get these from: https://developer.intuit.com
+
+QB_CLIENT_ID=your_quickbooks_client_id_here
+QB_CLIENT_SECRET=your_quickbooks_client_secret_here
+
+# Environment Settings
+QB_SANDBOX=True  # Set to False for production QuickBooks data
+SECRET_KEY=your-secret-key-for-flask-sessions
+
+# Optional: Custom redirect URI (auto-detected if not set)
+# QB_REDIRECT_URI=http://localhost:5000/callback
+
+# Jupyter Configuration (optional)
+JUPYTER_PASSWORD=quickbooks123
+JUPYTER_PORT=8888
