@@ -6,6 +6,11 @@ import uuid
 import json
 from urllib.parse import quote_plus
 import base64
+import threading
+import subprocess
+import sys
+import time
+from jupyter_server.auth import passwd
 
 load_dotenv()
 
@@ -27,6 +32,93 @@ else:
     QB_OAUTH_AUTHORIZE_URL = "https://appcenter.intuit.com/connect/oauth2"
     QB_OAUTH_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
     QB_API_BASE_URL = "https://quickbooks.api.intuit.com/v3/company"
+
+# Jupyter Configuration
+JUPYTER_PORT = int(os.getenv('JUPYTER_PORT', '8888'))
+JUPYTER_PASSWORD = os.getenv('JUPYTER_PASSWORD', 'quickbooks123')
+jupyter_process = None
+jupyter_running = False
+
+def setup_jupyter_config():
+    """Set up Jupyter configuration for integrated deployment"""
+    config_dir = os.path.expanduser('~/.jupyter')
+    os.makedirs(config_dir, exist_ok=True)
+    
+    hashed_password = passwd(JUPYTER_PASSWORD)
+    
+    config_content = f"""
+c.ServerApp.ip = '0.0.0.0'
+c.ServerApp.port = {JUPYTER_PORT}
+c.ServerApp.open_browser = False
+c.ServerApp.password = '{hashed_password}'
+c.ServerApp.allow_root = True
+c.ServerApp.allow_origin = '*'
+c.ServerApp.disable_check_xsrf = True
+c.ServerApp.notebook_dir = '{os.getcwd()}'
+c.ServerApp.token = ''
+c.ServerApp.base_url = '/jupyter/'
+c.ServerApp.allow_remote_access = True
+"""
+    
+    config_path = os.path.join(config_dir, 'jupyter_server_config.py')
+    with open(config_path, 'w') as f:
+        f.write(config_content)
+    
+    return config_path
+
+def start_jupyter_server():
+    """Start Jupyter server in background thread"""
+    global jupyter_process, jupyter_running
+    
+    if jupyter_running:
+        return True
+    
+    try:
+        config_path = setup_jupyter_config()
+        
+        cmd = [
+            sys.executable, '-m', 'jupyter', 'lab',
+            '--config', config_path,
+            '--no-browser',
+            '--allow-root'
+        ]
+        
+        print(f"🚀 Starting Jupyter Lab on port {JUPYTER_PORT}...")
+        jupyter_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Give Jupyter a moment to start
+        time.sleep(3)
+        
+        if jupyter_process.poll() is None:
+            jupyter_running = True
+            print(f"✅ Jupyter Lab started successfully on port {JUPYTER_PORT}")
+            return True
+        else:
+            print("❌ Failed to start Jupyter Lab")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error starting Jupyter: {str(e)}")
+        return False
+
+def stop_jupyter_server():
+    """Stop Jupyter server"""
+    global jupyter_process, jupyter_running
+    
+    if jupyter_process and jupyter_running:
+        jupyter_process.terminate()
+        jupyter_process.wait()
+        jupyter_running = False
+        print("🛑 Jupyter Lab stopped")
+
+def is_jupyter_running():
+    """Check if Jupyter server is running"""
+    global jupyter_process, jupyter_running
+    
+    if not jupyter_running or not jupyter_process:
+        return False
+    
+    return jupyter_process.poll() is None
 
 @app.route("/")
 def index():
@@ -85,6 +177,17 @@ def index():
                         <div class="card-body text-center">
                             <h5 class="card-title">Export Data</h5>
                             <p class="card-text">Export your data in various formats</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12 text-center">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">🪐 Jupyter Notebook Analysis</h5>
+                            <p class="card-text">Access our interactive Jupyter notebook for advanced data analysis and custom queries</p>
+                            <a href="/jupyter" class="btn btn-success btn-lg">Open Jupyter Lab</a>
                         </div>
                     </div>
                 </div>
@@ -286,14 +389,14 @@ def sync_data():
 @app.route("/new_dashboard")
 def new_dashboard():
     # Get counts safely
-    customer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Customer")
-    invoice_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Invoice")
-    item_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Item")
-    payment_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Payment")
-    journal_result = make_quickbooks_api_call("SELECT COUNT(*) FROM JournalEntry")
-    deposit_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Deposit")
-    expense_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Purchase")
-    transfer_result = make_quickbooks_api_call("SELECT COUNT(*) FROM Transfer")
+    customer_result = make_quickbooks_api_call("SELECT * FROM Customer")
+    invoice_result = make_quickbooks_api_call("SELECT * FROM Invoice")
+    item_result = make_quickbooks_api_call("SELECT * FROM Item")
+    payment_result = make_quickbooks_api_call("SELECT * FROM Payment")
+    journal_result = make_quickbooks_api_call("SELECT * FROM JournalEntry")
+    deposit_result = make_quickbooks_api_call("SELECT * FROM Deposit")
+    expense_result = make_quickbooks_api_call("SELECT * FROM Purchase")
+    transfer_result = make_quickbooks_api_call("SELECT * FROM Transfer")
 
 
     return render_template("new_dashboard.html",
@@ -1067,7 +1170,188 @@ def show_tokens():
         'x_refresh_token_expires_in': session.get('x_refresh_token_expires_in')
     }
 
+# Jupyter Routes
+@app.route("/jupyter")
+def jupyter_home():
+    """Jupyter notebook access page"""
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DataRift - Jupyter Notebook</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/">DataRift</a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/dashboard">Dashboard</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">🪐 Jupyter Notebook Access</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <h5>Status: <span id="jupyter-status" class="badge bg-secondary">Checking...</span></h5>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h6>Access Information:</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Port:</strong> {JUPYTER_PORT}</li>
+                                    <li><strong>Password:</strong> <code>{JUPYTER_PASSWORD}</code></li>
+                                    <li><strong>Notebook:</strong> <code>quickbooks_api_notebook.ipynb</code></li>
+                                </ul>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button id="start-jupyter" class="btn btn-success" onclick="startJupyter()">
+                                    🚀 Start Jupyter Lab
+                                </button>
+                                <button id="stop-jupyter" class="btn btn-danger" onclick="stopJupyter()" disabled>
+                                    🛑 Stop Jupyter Lab
+                                </button>
+                                <a id="open-jupyter" href="#" class="btn btn-primary" target="_blank" style="display:none;">
+                                    📓 Open Jupyter Lab
+                                </a>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h6>Quick Start:</h6>
+                                <ol>
+                                    <li>Click "Start Jupyter Lab" above</li>
+                                    <li>Wait for the server to start (may take 30-60 seconds)</li>
+                                    <li>Click "Open Jupyter Lab" when available</li>
+                                    <li>Enter password: <code>{JUPYTER_PASSWORD}</code></li>
+                                    <li>Open <code>quickbooks_api_notebook.ipynb</code></li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function checkStatus() {{
+                fetch('/jupyter/status')
+                    .then(response => response.json())
+                    .then(data => {{
+                        const statusBadge = document.getElementById('jupyter-status');
+                        const startBtn = document.getElementById('start-jupyter');
+                        const stopBtn = document.getElementById('stop-jupyter');
+                        const openBtn = document.getElementById('open-jupyter');
+                        
+                        if (data.running) {{
+                            statusBadge.textContent = 'Running';
+                            statusBadge.className = 'badge bg-success';
+                            startBtn.disabled = true;
+                            stopBtn.disabled = false;
+                            openBtn.style.display = 'block';
+                            openBtn.href = `http://localhost:{JUPYTER_PORT}`;
+                        }} else {{
+                            statusBadge.textContent = 'Stopped';
+                            statusBadge.className = 'badge bg-danger';
+                            startBtn.disabled = false;
+                            stopBtn.disabled = true;
+                            openBtn.style.display = 'none';
+                        }}
+                    }});
+            }}
+            
+            function startJupyter() {{
+                document.getElementById('start-jupyter').disabled = true;
+                document.getElementById('jupyter-status').textContent = 'Starting...';
+                document.getElementById('jupyter-status').className = 'badge bg-warning';
+                
+                fetch('/jupyter/start', {{method: 'POST'}})
+                    .then(response => response.json())
+                    .then(data => {{
+                        if (data.success) {{
+                            setTimeout(checkStatus, 2000);
+                        }} else {{
+                            alert('Failed to start Jupyter: ' + data.error);
+                            checkStatus();
+                        }}
+                    }});
+            }}
+            
+            function stopJupyter() {{
+                fetch('/jupyter/stop', {{method: 'POST'}})
+                    .then(response => response.json())
+                    .then(data => {{
+                        checkStatus();
+                    }});
+            }}
+            
+            // Check status on page load and every 10 seconds
+            checkStatus();
+            setInterval(checkStatus, 10000);
+        </script>
+    </body>
+    </html>
+    """
+
+@app.route("/jupyter/status")
+def jupyter_status():
+    """Get Jupyter server status"""
+    return jsonify({
+        'running': is_jupyter_running(),
+        'port': JUPYTER_PORT,
+        'password': JUPYTER_PASSWORD
+    })
+
+@app.route("/jupyter/start", methods=['POST'])
+def start_jupyter():
+    """Start Jupyter server"""
+    try:
+        success = start_jupyter_server()
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route("/jupyter/stop", methods=['POST'])
+def stop_jupyter():
+    """Stop Jupyter server"""
+    try:
+        stop_jupyter_server()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+def startup():
+    """Initialize services when Flask starts"""
+    # Start Jupyter server in background thread
+    def start_jupyter_background():
+        time.sleep(5)  # Give Flask time to fully start
+        start_jupyter_server()
+    
+    jupyter_thread = threading.Thread(target=start_jupyter_background, daemon=True)
+    jupyter_thread.start()
+
+import atexit
+
+def cleanup():
+    """Cleanup when Flask shuts down"""
+    stop_jupyter_server()
+
+atexit.register(cleanup)
+
 if __name__ == '__main__':
+    # Start Jupyter server in background
+    startup()
+    
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
 # QBO-Style Transaction Table - Updated Sat Sep 20 18:18:18 EDT 2025
