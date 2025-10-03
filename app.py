@@ -1258,7 +1258,8 @@ def jupyter_home():
                             startBtn.disabled = true;
                             stopBtn.disabled = false;
                             openBtn.style.display = 'block';
-                            openBtn.href = `http://localhost:{JUPYTER_PORT}/?token=${{data.token}}`;
+                            // Use Flask proxy route for Jupyter
+                            openBtn.href = `/jupyter-lab/?token=${{data.token}}`;
                         }} else {{
                             statusBadge.textContent = 'Stopped';
                             statusBadge.className = 'badge bg-danger';
@@ -1328,6 +1329,91 @@ def stop_jupyter():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route("/jupyter-lab/")
+def jupyter_redirect():
+    """Redirect to Jupyter Lab with instructions"""
+    if not is_jupyter_running():
+        return """
+        <div style="text-align: center; margin-top: 50px; font-family: Arial, sans-serif;">
+            <h2>Jupyter Lab is not running</h2>
+            <p>Please go back to the <a href="/jupyter">Jupyter management page</a> and start the server first.</p>
+        </div>
+        """, 503
+    
+    # Get the current domain but determine the correct Jupyter URL
+    current_domain = request.host.split(':')[0]  # Remove port if present
+    
+    # Determine the correct Jupyter URL based on environment
+    if 'localhost' in current_domain or '127.0.0.1' in current_domain:
+        # Development environment
+        jupyter_url = f"http://localhost:{JUPYTER_PORT}/?token={JUPYTER_PASSWORD}"
+        railway_url_option1 = jupyter_url
+        railway_url_option2 = jupyter_url
+    else:
+        # Production environment (Railway)
+        # Railway may expose Jupyter on the same domain with a different subdomain or port
+        railway_url_option1 = f"https://{current_domain.replace('app', 'jupyter')}/?token={JUPYTER_PASSWORD}"
+        railway_url_option2 = f"https://{current_domain}:{JUPYTER_PORT}/?token={JUPYTER_PASSWORD}"
+        jupyter_url = railway_url_option1  # Try the subdomain approach first
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Jupyter Lab Access</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🪐 Jupyter Lab Access</h3>
+                        </div>
+                        <div class="card-body text-center">
+                            <h5>Jupyter Lab is running!</h5>
+                            <p class="mb-4">Click the button below to access Jupyter Lab:</p>
+                            
+                            <div class="mb-4">
+                                <strong>Access Token:</strong> <code>{JUPYTER_PASSWORD}</code>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <a href="{jupyter_url}" target="_blank" class="btn btn-success btn-lg">
+                                    🚀 Open Jupyter Lab
+                                </a>
+                                <a href="/jupyter" class="btn btn-secondary">
+                                    ← Back to Management
+                                </a>
+                            </div>
+                            
+                            <div class="mt-4 text-start">
+                                <h6>If the main link doesn't work, try these alternatives:</h6>
+                                <div class="mb-3">
+                                    <strong>Option 1 (Subdomain):</strong><br>
+                                    <code>{railway_url_option1}</code>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Option 2 (Port):</strong><br>
+                                    <code>{railway_url_option2}</code>
+                                </div>
+                                <div class="alert alert-info">
+                                    <strong>Railway Note:</strong> Railway may need additional configuration to expose port {JUPYTER_PORT}. 
+                                    Check your Railway dashboard for service URLs or contact support if needed.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
 def startup():
     """Initialize services when Flask starts"""
