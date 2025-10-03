@@ -10,7 +10,6 @@ import threading
 import subprocess
 import sys
 import time
-from jupyter_server.auth import passwd
 
 load_dotenv()
 
@@ -44,19 +43,19 @@ def setup_jupyter_config():
     config_dir = os.path.expanduser('~/.jupyter')
     os.makedirs(config_dir, exist_ok=True)
     
-    hashed_password = passwd(JUPYTER_PASSWORD)
+    # Use token-based authentication instead of password
+    jupyter_token = JUPYTER_PASSWORD  # Use the password as a token for simplicity
     
     config_content = f"""
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = {JUPYTER_PORT}
 c.ServerApp.open_browser = False
-c.ServerApp.password = '{hashed_password}'
+c.ServerApp.token = '{jupyter_token}'
+c.ServerApp.password = ''
 c.ServerApp.allow_root = True
 c.ServerApp.allow_origin = '*'
 c.ServerApp.disable_check_xsrf = True
 c.ServerApp.notebook_dir = '{os.getcwd()}'
-c.ServerApp.token = ''
-c.ServerApp.base_url = '/jupyter/'
 c.ServerApp.allow_remote_access = True
 """
     
@@ -727,7 +726,7 @@ def get_transactions_pandas():
         ("Expense", "Expense"),
         ("RefundReceipt", "Refund Receipt"),
         ("CreditMemo", "Credit Memo"),
-        ("SalesReceipt", "Sales Receipt")
+        ("SalesReceipt", "Sales Receipt"),
         ('JournalEntry', 'Journal Entries'),
         ('Deposit', 'Deposits'),
         ('Purchase', 'Expenses'),
@@ -882,7 +881,7 @@ def get_raw_transactions():
         ("Expense", "Expense"),
         ("RefundReceipt", "Refund Receipt"),
         ("CreditMemo", "Credit Memo"),
-        ("SalesReceipt", "Sales Receipt")
+        ("SalesReceipt", "Sales Receipt"),
         ("JournalEntry", "Journal Entry"),
         ("Deposit", "Deposit"),
         ("Purchase", "Purchase"),
@@ -1210,7 +1209,7 @@ def jupyter_home():
                                 <h6>Access Information:</h6>
                                 <ul class="list-unstyled">
                                     <li><strong>Port:</strong> {JUPYTER_PORT}</li>
-                                    <li><strong>Password:</strong> <code>{JUPYTER_PASSWORD}</code></li>
+                                    <li><strong>Token:</strong> <code>{JUPYTER_PASSWORD}</code></li>
                                     <li><strong>Notebook:</strong> <code>quickbooks_api_notebook.ipynb</code></li>
                                 </ul>
                             </div>
@@ -1233,7 +1232,7 @@ def jupyter_home():
                                     <li>Click "Start Jupyter Lab" above</li>
                                     <li>Wait for the server to start (may take 30-60 seconds)</li>
                                     <li>Click "Open Jupyter Lab" when available</li>
-                                    <li>Enter password: <code>{JUPYTER_PASSWORD}</code></li>
+                                    <li>Enter token: <code>{JUPYTER_PASSWORD}</code></li>
                                     <li>Open <code>quickbooks_api_notebook.ipynb</code></li>
                                 </ol>
                             </div>
@@ -1259,7 +1258,7 @@ def jupyter_home():
                             startBtn.disabled = true;
                             stopBtn.disabled = false;
                             openBtn.style.display = 'block';
-                            openBtn.href = `http://localhost:{JUPYTER_PORT}`;
+                            openBtn.href = `http://localhost:{JUPYTER_PORT}/?token=${{data.token}}`;
                         }} else {{
                             statusBadge.textContent = 'Stopped';
                             statusBadge.className = 'badge bg-danger';
@@ -1309,7 +1308,7 @@ def jupyter_status():
     return jsonify({
         'running': is_jupyter_running(),
         'port': JUPYTER_PORT,
-        'password': JUPYTER_PASSWORD
+        'token': JUPYTER_PASSWORD
     })
 
 @app.route("/jupyter/start", methods=['POST'])
