@@ -70,10 +70,25 @@ def start_jupyter_server():
     global jupyter_process, jupyter_running
     
     if jupyter_running:
+        print("ℹ️  Jupyter is already running")
         return True
     
     try:
+        # First check if jupyter is available
+        print("🔍 Checking if Jupyter is available...")
+        check_cmd = [sys.executable, '-m', 'jupyter', '--version']
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=10)
+        
+        if check_result.returncode != 0:
+            error_msg = f"Jupyter not available: {check_result.stderr}"
+            print(f"❌ {error_msg}")
+            return False
+        
+        print(f"✅ Jupyter found: {check_result.stdout.strip()}")
+        
+        # Set up configuration
         config_path = setup_jupyter_config()
+        print(f"✅ Config created: {config_path}")
         
         cmd = [
             sys.executable, '-m', 'jupyter', 'lab',
@@ -83,21 +98,42 @@ def start_jupyter_server():
         ]
         
         print(f"🚀 Starting Jupyter Lab on port {JUPYTER_PORT}...")
-        jupyter_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"   Command: {' '.join(cmd)}")
+        
+        jupyter_process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         
         # Give Jupyter a moment to start
-        time.sleep(3)
+        print("⏳ Waiting for Jupyter to start...")
+        time.sleep(5)
         
         if jupyter_process.poll() is None:
             jupyter_running = True
             print(f"✅ Jupyter Lab started successfully on port {JUPYTER_PORT}")
+            print(f"   Process ID: {jupyter_process.pid}")
             return True
         else:
+            # Get error output
+            stdout, stderr = jupyter_process.communicate()
             print("❌ Failed to start Jupyter Lab")
+            print(f"   Exit code: {jupyter_process.returncode}")
+            if stdout:
+                print(f"   Stdout: {stdout}")
+            if stderr:
+                print(f"   Stderr: {stderr}")
             return False
             
+    except subprocess.TimeoutExpired:
+        print("❌ Jupyter version check timed out")
+        return False
     except Exception as e:
         print(f"❌ Error starting Jupyter: {str(e)}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
         return False
 
 def stop_jupyter_server():
@@ -1205,6 +1241,12 @@ def jupyter_home():
                                 <h5>Status: <span id="jupyter-status" class="badge bg-secondary">Checking...</span></h5>
                             </div>
                             
+                            <div class="alert alert-info">
+                                <strong>Development Note:</strong> If you're running locally and Jupyter packages aren't installed, 
+                                the start button won't work. This is normal - it will work when deployed to Railway where all 
+                                dependencies are installed.
+                            </div>
+                            
                             <div class="mb-4">
                                 <h6>Access Information:</h6>
                                 <ul class="list-unstyled">
@@ -1281,9 +1323,17 @@ def jupyter_home():
                         if (data.success) {{
                             setTimeout(checkStatus, 2000);
                         }} else {{
-                            alert('Failed to start Jupyter: ' + data.error);
+                            let errorMsg = 'Failed to start Jupyter: ' + data.error;
+                            if (data.details) {{
+                                errorMsg += '\\n\\nDetails: ' + data.details;
+                            }}
+                            alert(errorMsg);
                             checkStatus();
                         }}
+                    }})
+                    .catch(error => {{
+                        alert('Network error starting Jupyter: ' + error.message);
+                        checkStatus();
                     }});
             }}
             
@@ -1313,13 +1363,35 @@ def jupyter_status():
     })
 
 @app.route("/jupyter/start", methods=['POST'])
-def start_jupyter():
+def start_jupyter_route():
     """Start Jupyter server"""
     try:
+        print("📡 Received request to start Jupyter server")
         success = start_jupyter_server()
-        return jsonify({'success': success})
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': 'Jupyter server started successfully',
+                'port': JUPYTER_PORT
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': 'Failed to start Jupyter server. Check server logs for details.',
+                'details': 'Jupyter may not be installed or there may be a port conflict.'
+            })
+            
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ Exception in start_jupyter_route: {error_details}")
+        
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'details': 'Check server logs for full error details.'
+        })
 
 @app.route("/jupyter/stop", methods=['POST'])
 def stop_jupyter():
